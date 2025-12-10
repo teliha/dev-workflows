@@ -278,7 +278,103 @@ jobs:
 
 ---
 
-#### 3. Auto Fix CI (Composite Action)
+#### 3. Spec Contradiction Check Workflow
+
+```yaml
+name: Spec Check
+
+on:
+  push:
+    paths:
+      - 'specs/**'
+      - 'docs/**'
+
+jobs:
+  check:
+    uses: teliha/dev-workflows/.github/workflows/spec-check.yml@main
+    with:
+      specs_directory: "specs/"
+      docs_directory: "docs/"
+      create_issue_on_findings: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+---
+
+### Available Composite Actions
+
+Composite actions let you control the build environment while leveraging Claude's automation.
+
+#### 1. Security Audit (Composite Action)
+
+**Use when:** You need custom build tools or dependencies for the audit.
+
+**For Foundry projects:**
+```yaml
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      # You provide the build environment
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - run: forge install
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/security-audit@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          create_issue_on_critical: true
+          report_retention_days: 90
+```
+
+**For Node.js projects:**
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  
+  # You provide the build environment
+  - uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+      cache: 'npm'
+  - run: npm ci
+  
+  # Use the composite action
+  - uses: teliha/dev-workflows/.github/actions/security-audit@main
+    with:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Inputs:**
+- `claude_code_oauth_token` (required)
+- `github_token` (required)
+- `create_issue_on_critical` (optional, default: `true`)
+- `report_retention_days` (optional, default: `90`)
+
+---
+
+#### 2. Auto Fix CI (Composite Action)
 
 **Universal action - works with any project type. You provide the build environment.**
 
@@ -310,6 +406,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/fix-ci@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           failed_run_id: ${{ github.event.workflow_run.id }}
           failed_branch: ${{ github.event.workflow_run.head_branch }}
           pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
@@ -343,6 +440,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/fix-ci@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           failed_run_id: ${{ github.event.workflow_run.id }}
           failed_branch: ${{ github.event.workflow_run.head_branch }}
           pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
@@ -381,6 +479,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           target_coverage_increase: "5"
           base_branch: main
 ```
@@ -412,6 +511,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           target_coverage_increase: "5"
           base_branch: main
 ```
@@ -447,6 +547,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/fix-lint@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
 ```
 
@@ -475,6 +576,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/fix-lint@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
 ```
 
@@ -503,6 +605,7 @@ jobs:
       - uses: teliha/dev-workflows/.github/actions/fix-lint@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
 ```
 

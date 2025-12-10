@@ -35,14 +35,14 @@ runs:
           BRANCH_NAME="fix/lint-warning-$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "GH_TOKEN=${{ inputs.github_token }}" >> $GITHUB_ENV
         fi
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
 
     - name: Fix lint warning with Claude
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        github_token: ${{ inputs.github_token }}
         claude_args: '--allowed-tools "Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*)"'
         prompt: |
           /fix-lint
@@ -77,8 +77,6 @@ runs:
              - Example: `gh pr create --title "fix(lint): ..." --body "..." --base ${{ inputs.base_branch }}`
 
           Only fix ONE warning per run to keep changes focused and reviewable.
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Summary
       shell: bash

@@ -1,0 +1,73 @@
+name: Security Audit
+description: Perform comprehensive security audit using Claude Code
+
+inputs:
+  claude_code_oauth_token:
+    description: "Claude Code OAuth token for authentication"
+    required: true
+  github_token:
+    description: "GitHub token for API access"
+    required: true
+  create_issue_on_critical:
+    description: "Create GitHub issue if critical findings are discovered"
+    required: false
+    default: "true"
+  report_retention_days:
+    description: "Number of days to retain audit reports"
+    required: false
+    default: "90"
+
+runs:
+  using: composite
+  steps:
+    - name: Run Claude Code Audit
+      id: audit
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        github_token: ${{ inputs.github_token }}
+        claude_args: '--allowed-tools "Bash(gh issue create:*),Bash(gh issue list:*)"'
+        prompt: |
+          /audit
+
+          Please perform a comprehensive security audit. The audit command will automatically detect the project type.
+
+          Generate a detailed audit report and save it to `audit-report-$(date +%Y%m%d).md`.
+
+          After completing the audit:
+          ${{ inputs.create_issue_on_critical == 'true' && '1. If you find any CRITICAL severity issues, create a GitHub issue using the `gh` CLI:
+             - Title: "🚨 CRITICAL Security Issue - Audit YYYY-MM-DD"
+             - Body should include:
+               - Summary of critical findings
+               - Link to this workflow run
+               - Next steps for remediation
+             - Labels: security, critical, audit
+             - Example command: `gh issue create --title "..." --body "..." --label security,critical,audit`
+
+          2. The GITHUB_TOKEN is available in the environment for gh CLI authentication.' || 'Note: Issue creation is disabled. Report will be uploaded as an artifact.' }}
+
+    - name: Upload audit report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-audit-report-${{ github.run_number }}
+        path: |
+          audit-report-*.md
+          audits/**/*.md
+        retention-days: ${{ inputs.report_retention_days }}
+        if-no-files-found: warn
+
+    - name: Summary
+      if: always()
+      shell: bash
+      run: |
+        echo "### Security Audit Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: Audit completed" >> $GITHUB_STEP_SUMMARY
+        echo "**Report**: Check the uploaded artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f "audit-report-$(date +%Y%m%d).md" ]; then
+          echo "#### Report Preview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          head -n 30 "audit-report-$(date +%Y%m%d).md" >> $GITHUB_STEP_SUMMARY || true
+        fi
