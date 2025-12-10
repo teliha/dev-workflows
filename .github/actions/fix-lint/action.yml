@@ -1,0 +1,89 @@
+name: Fix Lint Warning
+description: Fix one important lint/static analysis warning using Claude Code
+
+inputs:
+  claude_code_oauth_token:
+    description: OAuth token for Claude Code authentication
+    required: true
+  base_branch:
+    description: Base branch to create PR against
+    required: false
+    default: main
+  pr_number:
+    description: PR number to push fixes to (optional, creates new branch if not provided)
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup git identity
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Create fix branch
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.pr_number }}" ]; then
+          echo "Using existing PR #${{ inputs.pr_number }}"
+          gh pr checkout ${{ inputs.pr_number }}
+        else
+          BRANCH_NAME="fix/lint-warning-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Fix lint warning with Claude
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        claude_args: '--allowed-tools "Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*)"'
+        prompt: |
+          /fix-lint
+
+          Please fix ONE important lint/static analysis warning in this project.
+
+          Build tools and linters are already installed in this environment.
+
+          Steps:
+          1. Detect the project type and run the appropriate linter:
+             - TypeScript/JavaScript: `npm run lint` or `eslint .` or `tsc --noEmit`
+             - Rust: `cargo clippy --all-targets --all-features`
+             - Foundry (Solidity): `forge lint` (if available), `forge fmt --check`, or use solhint if available
+
+          2. Identify ONE important warning (prioritize: security > performance > style)
+
+          3. Fix the warning by modifying the source code
+
+          4. Verify the fix by running the linter again
+
+          5. Commit the changes with a descriptive message:
+             - Format: "fix(lint): [brief description of the fix]"
+             - Example: "fix(lint): remove unused variable in UserService"
+
+          6. Push the changes to the current branch:
+             - Use: `git push origin HEAD` or `git push -u origin HEAD`
+
+          7. Create a pull request using `gh pr create`:
+             - Title: Same as commit message
+             - Body: Include details about what was fixed and why
+             - Base branch: ${{ inputs.base_branch }}
+             - Example: `gh pr create --title "fix(lint): ..." --body "..." --base ${{ inputs.base_branch }}`
+
+          Only fix ONE warning per run to keep changes focused and reviewable.
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "### Lint Fix Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Claude Code has fixed one lint warning and created a pull request." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch**: \`$(git branch --show-current)\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Review the PR to merge the fix." >> $GITHUB_STEP_SUMMARY

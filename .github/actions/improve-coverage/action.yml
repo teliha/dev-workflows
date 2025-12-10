@@ -3,20 +3,20 @@ description: Analyze current test coverage and add new test cases using Claude C
 
 inputs:
   claude_code_oauth_token:
-    description: 'Claude Code OAuth token for authentication'
+    description: "Claude Code OAuth token for authentication"
     required: true
   github_token:
-    description: 'GitHub token for API access'
+    description: "GitHub token for API access"
     required: false
     default: ${{ github.token }}
   target_coverage_increase:
-    description: 'Target coverage increase percentage'
+    description: "Target coverage increase percentage"
     required: false
-    default: '5'
+    default: "5"
   base_branch:
-    description: 'Base branch for PR'
+    description: "Base branch for PR"
     required: false
-    default: 'main'
+    default: "main"
 
 runs:
   using: composite
@@ -40,6 +40,7 @@ runs:
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         github_token: ${{ inputs.github_token }}
+        claude_args: '--allowed-tools "Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*)"'
         prompt: |
           /improve-coverage
 
@@ -60,12 +61,22 @@ runs:
           After adding tests:
           1. Run tests to ensure they pass
           2. Check coverage improvement
-          3. Commit changes: `git add . && git commit -m "test: improve coverage"`
+          3. Commit changes: `git add . && git commit -m "test: improve coverage by ${{ inputs.target_coverage_increase }}%"`
           4. Push: `git push origin ${{ steps.branch.outputs.branch_name }}`
-          5. Create PR using `gh pr create` targeting `${{ inputs.base_branch }}`
+          5. Create PR using `gh pr create`:
+             - Title: "test: improve coverage by ${{ inputs.target_coverage_increase }}%"
+             - Body: Include details about what tests were added and coverage improvement
+             - Base branch: ${{ inputs.base_branch }}
+             - Example: `gh pr create --title "test: improve coverage" --body "..." --base ${{ inputs.base_branch }}`
 
     - name: Summary
       if: always()
       shell: bash
       run: |
-        echo "::notice::Coverage improvement completed. Check the Claude Code Action output for details."
+        echo "### Coverage Improvement Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Claude Code has added test cases and created a pull request." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch**: \`$(git branch --show-current)\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Review the PR to merge the improvements." >> $GITHUB_STEP_SUMMARY

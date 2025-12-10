@@ -190,6 +190,25 @@ Scans `specs/`, `docs/`, `README.md` for:
 - Ambiguous requirements
 - Missing critical information
 
+### Fix Lint Warning
+
+Fix one important lint or static analysis warning:
+
+```bash
+/fix-lint
+```
+
+**Supported Languages:**
+- **TypeScript/JavaScript**: ESLint, TypeScript compiler
+- **Rust**: Clippy warnings
+- **Foundry/Solidity**: Forge formatting, Solhint
+
+Automatically:
+1. Detects project type
+2. Runs appropriate linter
+3. Fixes ONE important warning (prioritizes security > correctness > performance)
+4. Commits and pushes the fix
+
 ## GitHub Actions Components
 
 This plugin provides both **reusable workflows** and **composite actions** for automated CI/CD.
@@ -204,6 +223,7 @@ This plugin provides both **reusable workflows** and **composite actions** for a
 **Composite Actions (Requires build environment):**
 - Auto Fix CI - You provide the build environment
 - Improve Coverage - You provide the build environment
+- Fix Lint Warning - You provide the build environment
 
 ### Available Reusable Workflows
 
@@ -402,7 +422,103 @@ jobs:
 
 ---
 
-#### 5. Spec Check Workflow
+#### 5. Fix Lint Warning (Composite Action)
+
+**Universal action - works with any project type. You provide the build environment.**
+
+**For Foundry projects:**
+```yaml
+name: Fix Lint
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Daily at 4 AM
+  workflow_dispatch:
+
+jobs:
+  fix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Setup your build environment
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - run: forge install
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/fix-lint@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          base_branch: main
+```
+
+**For TypeScript/Node.js projects:**
+```yaml
+name: Fix Lint
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Daily at 4 AM
+  workflow_dispatch:
+
+jobs:
+  fix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Setup your build environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/fix-lint@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          base_branch: main
+```
+
+**For Rust projects:**
+```yaml
+name: Fix Lint
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Daily at 4 AM
+  workflow_dispatch:
+
+jobs:
+  fix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Setup your build environment
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/fix-lint@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          base_branch: main
+```
+
+**Features:**
+- Fixes ONE important lint warning per run
+- Prioritizes: Security > Correctness > Performance > Style
+- Creates focused, reviewable commits
+- Auto-detects: TypeScript/JavaScript (ESLint), Rust (Clippy), Solidity (Forge fmt)
+
+---
+
+#### 6. Spec Check Workflow
 
 ```yaml
 name: Spec Check
