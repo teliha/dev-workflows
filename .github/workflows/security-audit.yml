@@ -5,8 +5,6 @@ on:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
-      GITHUB_TOKEN:
-        required: true
 
 permissions:
   contents: read
@@ -49,7 +47,7 @@ jobs:
 
             2. The GITHUB_TOKEN is available in the environment for gh CLI authentication.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Upload audit report
         if: always()

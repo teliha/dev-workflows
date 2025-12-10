@@ -242,11 +242,8 @@ on:
 jobs:
   audit:
     uses: teliha/dev-workflows/.github/workflows/security-audit.yml@main
-    with:
-      create_issue_on_critical: true
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 **Works with:** All project types (Foundry, Next.js, Node.js, Python, etc.)  
@@ -272,7 +269,6 @@ jobs:
       paths_filter: "src/**"  # Customize for your project
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 **Paths filter examples:**
@@ -537,7 +533,6 @@ jobs:
       create_issue_on_findings: true
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ---
@@ -665,7 +660,6 @@ jobs:
     uses: teliha/dev-workflows/.github/workflows/security-audit.yml@main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 **What it does:**

@@ -4,24 +4,22 @@ on:
   workflow_call:
     inputs:
       specs_directory:
-        description: 'Directory containing spec files'
+        description: "Directory containing spec files"
         required: false
         type: string
-        default: 'specs/'
+        default: "specs/"
       docs_directory:
-        description: 'Directory containing documentation'
+        description: "Directory containing documentation"
         required: false
         type: string
-        default: 'docs/'
+        default: "docs/"
       create_issue_on_findings:
-        description: 'Create GitHub issue for critical/high findings'
+        description: "Create GitHub issue for critical/high findings"
         required: false
         type: boolean
         default: true
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
-        required: true
-      GITHUB_TOKEN:
         required: true
 
 permissions:
@@ -44,7 +42,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             /check-spec-contradictions
 

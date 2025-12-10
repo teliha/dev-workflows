@@ -4,18 +4,16 @@ on:
   workflow_call:
     inputs:
       pr_number:
-        description: 'Pull request number'
+        description: "Pull request number"
         required: true
         type: string
       paths_filter:
-        description: 'Path filter for files to review'
+        description: "Path filter for files to review"
         required: false
         type: string
-        default: 'src/**'
+        default: "src/**"
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
-        required: true
-      GITHUB_TOKEN:
         required: true
 
 permissions:
