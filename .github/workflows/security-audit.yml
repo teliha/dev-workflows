@@ -3,13 +3,8 @@ name: Security Audit
 on:
   workflow_call:
     inputs:
-      foundry_version:
-        description: 'Foundry version to use'
-        required: false
-        type: string
-        default: 'nightly'
       create_issue_on_critical:
-        description: 'Create issue if critical findings are found'
+        description: "Create issue if critical findings are found"
         required: false
         type: boolean
         default: true
@@ -35,17 +30,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: ${{ inputs.foundry_version }}
-
-      - name: Install dependencies
-        run: forge install
-
-      - name: Build contracts
-        run: forge build
-
       - name: Run Claude Code Audit
         id: audit
         uses: anthropics/claude-code-action@v1
@@ -54,7 +38,7 @@ jobs:
           prompt: |
             /audit
 
-            Please perform a comprehensive security audit of all Solidity contracts in the `src/` directory.
+            Please perform a comprehensive security audit. The audit command will automatically detect the project type.
 
             Generate a detailed audit report and save it to `audit-report-$(date +%Y%m%d).md`.
 

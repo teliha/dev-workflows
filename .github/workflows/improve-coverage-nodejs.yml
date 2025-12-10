@@ -1,28 +1,23 @@
-name: Improve Test Coverage
+name: Improve Test Coverage (Node.js/Next.js)
 
 on:
   workflow_call:
     inputs:
-      foundry_version:
-        description: 'Foundry version to use'
+      node_version:
+        description: "Node.js version to use"
         required: false
         type: string
-        default: 'nightly'
-      test_match_path:
-        description: 'Test path pattern to match'
-        required: false
-        type: string
-        default: 'test/unit/*'
+        default: "20"
       target_coverage_increase:
-        description: 'Target coverage increase percentage'
+        description: "Target coverage increase percentage"
         required: false
         type: string
-        default: '5'
+        default: "5"
       base_branch:
-        description: 'Base branch for PR'
+        description: "Base branch for PR"
         required: false
         type: string
-        default: 'main'
+        default: "main"
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
@@ -52,24 +47,24 @@ jobs:
           git config --global user.email "claude[bot]@users.noreply.github.com"
           git config --global user.name "claude[bot]"
 
-      - name: Setup Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: ${{ inputs.foundry_version }}
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
 
       - name: Install dependencies
-        run: forge install
+        run: npm ci
 
       - name: Get current coverage
         id: current_coverage
         run: |
-          forge build
-          COVERAGE_OUTPUT=$(forge coverage --report summary --match-path "${{ inputs.test_match_path }}" 2>&1 || echo "Coverage failed")
+          COVERAGE_OUTPUT=$(npm run test:coverage 2>&1 || npm test -- --coverage 2>&1 || echo "Coverage failed")
           echo "coverage_report<<EOF" >> $GITHUB_OUTPUT
           echo "$COVERAGE_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          COVERAGE_PCT=$(echo "$COVERAGE_OUTPUT" | grep -oP 'Total.*?(\d+\.\d+)%' | grep -oP '\d+\.\d+' | head -1 || echo "0")
+          COVERAGE_PCT=$(echo "$COVERAGE_OUTPUT" | grep -oP 'All files.*?(\d+\.\d+)' | grep -oP '\d+\.\d+' | head -1 || echo "0")
           echo "coverage_pct=$COVERAGE_PCT" >> $GITHUB_OUTPUT
 
       - name: Create improvement branch
@@ -87,6 +82,10 @@ jobs:
           prompt: |
             /improve-coverage
 
+            ## Project Type
+
+            This is a Node.js/Next.js project.
+
             ## Current Test Coverage
 
             ```
@@ -102,9 +101,9 @@ jobs:
             Target: Increase coverage by at least ${{ inputs.target_coverage_increase }}%
 
             After adding tests:
-            1. Verify all tests pass: `forge test --match-path "${{ inputs.test_match_path }}"`
-            2. Check coverage improvement: `forge coverage --match-path "${{ inputs.test_match_path }}"`
-            3. Commit changes: `git add test/ && git commit -m "test: improve coverage"`
+            1. Verify all tests pass: `npm test`
+            2. Check coverage improvement: `npm run test:coverage` or `npm test -- --coverage`
+            3. Commit changes: `git add . && git commit -m "test: improve coverage"`
             4. Push: `git push origin ${{ steps.branch.outputs.branch_name }}`
             5. Create PR using `gh pr create` targeting `${{ inputs.base_branch }}`
 
@@ -112,13 +111,12 @@ jobs:
         if: success()
         id: new_coverage
         run: |
-          forge build
-          COVERAGE_OUTPUT=$(forge coverage --report summary --match-path "${{ inputs.test_match_path }}" 2>&1 || echo "Coverage check failed")
+          COVERAGE_OUTPUT=$(npm run test:coverage 2>&1 || npm test -- --coverage 2>&1 || echo "Coverage check failed")
           echo "new_coverage_report<<EOF" >> $GITHUB_OUTPUT
           echo "$COVERAGE_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          NEW_COVERAGE_PCT=$(echo "$COVERAGE_OUTPUT" | grep -oP 'Total.*?(\d+\.\d+)%' | grep -oP '\d+\.\d+' | head -1 || echo "0")
+          NEW_COVERAGE_PCT=$(echo "$COVERAGE_OUTPUT" | grep -oP 'All files.*?(\d+\.\d+)' | grep -oP '\d+\.\d+' | head -1 || echo "0")
           echo "new_coverage_pct=$NEW_COVERAGE_PCT" >> $GITHUB_OUTPUT
 
       - name: Create summary issue on failure
@@ -130,7 +128,7 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '⚠️ Auto Coverage Improvement Failed',
+              title: '⚠️ Auto Coverage Improvement Failed (Node.js)',
               body: `## Coverage Improvement Attempt Failed
 
               **Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}

@@ -192,11 +192,24 @@ Scans `specs/`, `docs/`, `README.md` for:
 
 ## Reusable GitHub Actions Workflows
 
-This plugin provides reusable GitHub Actions workflows for automated CI/CD across any project type.
+This plugin provides reusable GitHub Actions workflows for automated CI/CD.
+
+### Workflow Categories
+
+**Analysis Workflows (No build required):**
+- Security Audit - Static code analysis
+- Code Review - PR review
+- Spec Check - Documentation analysis
+
+**Build & Test Workflows (Build environment required):**
+- Auto Fix CI - Separate workflows for Foundry and Node.js
+- Improve Coverage - Separate workflows for Foundry and Node.js
 
 ### Available Reusable Workflows
 
 #### 1. Security Audit Workflow
+
+**Universal workflow** - Works with any project type without setup.
 
 ```yaml
 name: Security Audit
@@ -210,14 +223,14 @@ jobs:
   audit:
     uses: teliha/dev-workflows/.github/workflows/security-audit.yml@main
     with:
-      foundry_version: nightly  # Optional, for Foundry projects
       create_issue_on_critical: true
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Works with:** Foundry, Next.js, any project type
+**Works with:** All project types (Foundry, Next.js, Node.js, Python, etc.)  
+**Setup required:** None - uses static analysis only
 
 ---
 
@@ -249,34 +262,63 @@ jobs:
 
 ---
 
-#### 3. Auto Fix CI Workflow
+#### 3. Auto Fix CI Workflows
 
+**Choose the workflow for your project type:**
+
+**For Foundry projects:**
 ```yaml
 name: Auto Fix CI
 
 on:
   workflow_run:
-    workflows: ["CI"]  # Your CI workflow name
+    workflows: ["CI"]
     types: [completed]
 
 jobs:
   auto-fix:
     if: github.event.workflow_run.conclusion == 'failure'
-    uses: teliha/dev-workflows/.github/workflows/fix-ci.yml@main
+    uses: teliha/dev-workflows/.github/workflows/fix-ci-foundry.yml@main
     with:
-      foundry_version: nightly  # Optional, for Foundry
+      foundry_version: nightly
       failed_run_id: ${{ github.event.workflow_run.id }}
       failed_branch: ${{ github.event.workflow_run.head_branch }}
       pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
     secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**For Node.js/Next.js projects:**
+```yaml
+name: Auto Fix CI
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  auto-fix:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: teliha/dev-workflows/.github/workflows/fix-ci-nodejs.yml@main
+    with:
+      node_version: '20'
+      failed_run_id: ${{ github.event.workflow_run.id }}
+      failed_branch: ${{ github.event.workflow_run.head_branch }}
+      pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ---
 
-#### 4. Improve Coverage Workflow
+#### 4. Improve Coverage Workflows
 
+**Choose the workflow for your project type:**
+
+**For Foundry projects:**
 ```yaml
 name: Improve Coverage
 
@@ -287,10 +329,10 @@ on:
 
 jobs:
   coverage:
-    uses: teliha/dev-workflows/.github/workflows/improve-coverage.yml@main
+    uses: teliha/dev-workflows/.github/workflows/improve-coverage-foundry.yml@main
     with:
-      foundry_version: nightly  # Optional, for Foundry only
-      test_match_path: "test/unit/*"  # Customize per project
+      foundry_version: nightly
+      test_match_path: "test/unit/*"
       target_coverage_increase: "5"
       base_branch: main
     secrets:
@@ -298,10 +340,26 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Test path examples:**
-- Foundry: `test/unit/*`
-- Next.js: `__tests__/**`, `src/**/*.test.ts`
-- General: Depends on your test structure
+**For Node.js/Next.js projects:**
+```yaml
+name: Improve Coverage
+
+on:
+  schedule:
+    - cron: "0 */8 * * *"
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    uses: teliha/dev-workflows/.github/workflows/improve-coverage-nodejs.yml@main
+    with:
+      node_version: '20'
+      target_coverage_increase: "5"
+      base_branch: main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
 ---
 
@@ -414,13 +472,18 @@ permissions:
 
 ## Commands Reference
 
-| Command | Foundry | Next.js | General |
-|---------|---------|---------|---------|
-| `/audit` | ✅ Smart contract security | ✅ Web security | ✅ Code security |
-| `/code-review` | ✅ Solidity best practices | ✅ React/TS patterns | ✅ General review |
-| `/fix-ci` | ✅ forge test/build | ✅ npm test/build | ✅ Any CI |
-| `/improve-coverage` | ✅ forge coverage | ✅ jest/vitest | ✅ Auto-detect |
-| `/check-spec-contradictions` | ✅ | ✅ | ✅ |
+All slash commands **automatically detect your project type** and adapt accordingly.
+
+| Command | Description | Setup Required |
+|---------|-------------|----------------|
+| `/audit` | Security audit (auto-detects: Solidity, Next.js, Node.js, general) | None |
+| `/code-review` | PR code review with best practices | None |
+| `/fix-ci` | Auto-fix CI failures (runs tests/build) | Project tools (forge/npm) |
+| `/improve-coverage` | Add tests to improve coverage (runs tests) | Project tools (forge/npm) |
+| `/check-spec-contradictions` | Find spec inconsistencies | None |
+
+**Analysis commands** (`/audit`, `/code-review`, `/check-spec-contradictions`) work without any setup.  
+**Build commands** (`/fix-ci`, `/improve-coverage`) require project build tools to be installed.
 
 ## Skills
 
@@ -433,32 +496,85 @@ Automatically activates for security-focused tasks:
 
 ## Examples
 
-### Example 1: Foundry Project
+### Example 1: Security Audit (Universal - No Setup Required)
 
+**Local command:**
 ```bash
-# Local audit
 /audit
-
-# Output: Detailed report in audits/ContractName_audit_2024-12-10.md
 ```
 
-### Example 2: Next.js Project
-
-```bash
-# Review PR
-/code-review
-
-# Output: Comments on PR with security and quality feedback
+**GitHub Actions:**
+```yaml
+jobs:
+  audit:
+    uses: teliha/dev-workflows/.github/workflows/security-audit.yml@main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Example 3: Mixed Monorepo
+**What it does:**
+- Automatically detects project type (Foundry, Next.js, Node.js, etc.)
+- Performs static code analysis
+- Generates security audit report
+- No build tools required
 
-```bash
-# Check specs across all packages
-/check-spec-contradictions
+### Example 2: Auto-Fix CI Failures (Foundry)
 
-# Output: Report identifying cross-package inconsistencies
+**GitHub Actions:**
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  auto-fix:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: teliha/dev-workflows/.github/workflows/fix-ci-foundry.yml@main
+    with:
+      failed_run_id: ${{ github.event.workflow_run.id }}
+      failed_branch: ${{ github.event.workflow_run.head_branch }}
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+**What it does:**
+- Sets up Foundry toolchain
+- Analyzes CI failure logs
+- Fixes code issues
+- Runs `forge fmt`, `forge build`, `forge test`
+- Creates PR with fixes
+
+### Example 3: Auto-Fix CI Failures (Node.js)
+
+**GitHub Actions:**
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  auto-fix:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: teliha/dev-workflows/.github/workflows/fix-ci-nodejs.yml@main
+    with:
+      failed_run_id: ${{ github.event.workflow_run.id }}
+      failed_branch: ${{ github.event.workflow_run.head_branch }}
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**What it does:**
+- Sets up Node.js environment
+- Installs dependencies
+- Analyzes CI failure logs
+- Fixes code issues
+- Runs `npm run lint`, `npm test`, `npm run build`
+- Creates PR with fixes
 
 ## Contributing
 

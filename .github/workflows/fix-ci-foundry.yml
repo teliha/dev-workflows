@@ -1,27 +1,27 @@
-name: Auto Fix CI
+name: Auto Fix CI (Foundry)
 
 on:
   workflow_call:
     inputs:
       foundry_version:
-        description: 'Foundry version to use'
+        description: "Foundry version to use"
         required: false
         type: string
-        default: 'nightly'
+        default: "nightly"
       failed_run_id:
-        description: 'Failed workflow run ID'
+        description: "Failed workflow run ID"
         required: true
         type: string
       failed_branch:
-        description: 'Branch that failed CI'
+        description: "Branch that failed CI"
         required: true
         type: string
       pr_number:
-        description: 'Pull request number'
+        description: "Pull request number"
         required: false
         type: string
     secrets:
-      ANTHROPIC_API_KEY:
+      CLAUDE_CODE_OAUTH_TOKEN:
         required: true
       GITHUB_TOKEN:
         required: true
@@ -49,6 +49,14 @@ jobs:
         run: |
           git config --global user.email "claude[bot]@users.noreply.github.com"
           git config --global user.name "claude[bot]"
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ inputs.foundry_version }}
+
+      - name: Install dependencies
+        run: forge install
 
       - name: Create fix branch
         id: branch
@@ -114,15 +122,10 @@ jobs:
               errorDetails: errorDetails
             };
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: ${{ inputs.foundry_version }}
-
       - name: Fix CI failures with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             /fix-ci
 
@@ -137,6 +140,10 @@ jobs:
             ## Error Details
 
             ${{ toJSON(fromJSON(steps.failure_details.outputs.result).errorDetails) }}
+
+            ## Project Type
+
+            This is a Foundry/Solidity project.
 
             ## Instructions
 
