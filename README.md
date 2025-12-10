@@ -50,6 +50,13 @@ This Claude Code plugin provides essential development workflow commands that wo
 - Documentation gap identification
 - Ambiguity detection
 
+### 🌐 Specification Translation (`/translate-specs`)
+- Automated translation of specification files to Japanese
+- Preserves technical accuracy and formatting
+- Maintains consistent terminology across documents
+- Outputs to `docs/ja/specs/` structure
+- **Universal**: Works with any markdown-based specifications
+
 ## Installation
 
 ### Add to Your Project
@@ -189,6 +196,42 @@ Scans `specs/`, `docs/`, `README.md` for:
 - Contradictions between specs
 - Ambiguous requirements
 - Missing critical information
+
+### Translate Specifications to Japanese
+
+Translate specification files to Japanese:
+
+```bash
+/translate-specs
+```
+
+**What it does:**
+- Translates markdown files to Japanese (default: `specs/**/*.md`)
+- Outputs to `docs/ja/` (preserves directory structure)
+- Maintains technical term consistency
+- Preserves all code blocks and formatting
+- Creates a technical term glossary
+
+**Path Configuration:**
+
+The command uses environment variables (set by GitHub Actions workflow):
+- `TRANSLATE_SOURCE_PATH`: Source file pattern (default: `specs/**/*.md`)
+- `TRANSLATE_TARGET_BASE_PATH`: Target base directory (default: `docs/ja`)
+
+**Examples:**
+
+Default behavior:
+- Source: `specs/vault-basics/spec.md` → Target: `docs/ja/specs/vault-basics/spec.md`
+
+With custom paths (via workflow inputs):
+- Source: `docs/architecture.md` → Target: `docs/ja/docs/architecture.md`
+- Source: `README.md` → Target: `docs/ja/README.md`
+
+**Translation guidelines:**
+- Technical terms kept in English (with Japanese explanation)
+- Code blocks preserved exactly
+- Markdown formatting maintained
+- Consistent terminology across all files
 
 ### Fix Lint Warning
 
@@ -640,6 +683,70 @@ jobs:
 
 ---
 
+#### 7. Translate Specs Workflow
+
+**Universal workflow** - Translates specification files to Japanese.
+
+```yaml
+name: Translate Specs
+
+on:
+  push:
+    paths:
+      - 'specs/**/*.md'
+  workflow_dispatch:
+
+jobs:
+  translate:
+    uses: teliha/dev-workflows/.github/workflows/translate-specs.yml@main
+    with:
+      source_path: 'specs/**/*.md'
+      target_base_path: 'docs/ja'
+      create_pr: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Inputs:**
+- `source_path` (optional, default: `specs/**/*.md`) - Pattern for files to translate
+- `target_base_path` (optional, default: `docs/ja`) - Base directory for translations
+- `create_pr` (optional, default: `true`) - Create PR with translations
+
+**What it does:**
+- Translates all spec files matching the source pattern
+- Preserves directory structure under target path
+- Creates a glossary of technical terms
+- Opens a PR for review
+
+**Examples with custom paths:**
+
+Translate README and top-level docs:
+```yaml
+with:
+  source_path: '{README.md,CONTRIBUTING.md}'
+  target_base_path: 'docs/ja'
+  # README.md → docs/ja/README.md
+  # CONTRIBUTING.md → docs/ja/CONTRIBUTING.md
+```
+
+Translate all documentation:
+```yaml
+with:
+  source_path: 'docs/**/*.md'
+  target_base_path: 'i18n/ja'
+  # docs/guide/intro.md → i18n/ja/docs/guide/intro.md
+```
+
+Translate multiple directories:
+```yaml
+with:
+  source_path: '{specs/**/*.md,docs/**/*.md}'
+  target_base_path: 'translations/ja'
+```
+
+---
+
 ## Project-Specific Configuration
 
 ### Foundry/Solidity Projects
@@ -734,6 +841,7 @@ All slash commands **automatically detect your project type** and adapt accordin
 | `/fix-ci` | Auto-fix CI failures (runs tests/build) | Project tools (forge/npm) |
 | `/improve-coverage` | Add tests to improve coverage (runs tests) | Project tools (forge/npm) |
 | `/check-spec-contradictions` | Find spec inconsistencies | None |
+| `/translate-specs` | Translate specs to Japanese (outputs to `docs/ja/specs/`) | None |
 
 **Analysis commands** (`/audit`, `/code-review`, `/check-spec-contradictions`) work without any setup.  
 **Build commands** (`/fix-ci`, `/improve-coverage`) require project build tools to be installed.
