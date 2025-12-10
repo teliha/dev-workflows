@@ -190,20 +190,20 @@ Scans `specs/`, `docs/`, `README.md` for:
 - Ambiguous requirements
 - Missing critical information
 
-## Reusable GitHub Actions Workflows
+## GitHub Actions Components
 
-This plugin provides reusable GitHub Actions workflows for automated CI/CD.
+This plugin provides both **reusable workflows** and **composite actions** for automated CI/CD.
 
-### Workflow Categories
+### Component Categories
 
-**Analysis Workflows (No build required):**
+**Universal Workflows (No build required):**
 - Security Audit - Static code analysis
 - Code Review - PR review
 - Spec Check - Documentation analysis
 
-**Build & Test Workflows (Build environment required):**
-- Auto Fix CI - Separate workflows for Foundry and Node.js
-- Improve Coverage - Separate workflows for Foundry and Node.js
+**Composite Actions (Requires build environment):**
+- Auto Fix CI - You provide the build environment
+- Improve Coverage - You provide the build environment
 
 ### Available Reusable Workflows
 
@@ -262,9 +262,9 @@ jobs:
 
 ---
 
-#### 3. Auto Fix CI Workflows
+#### 3. Auto Fix CI (Composite Action)
 
-**Choose the workflow for your project type:**
+**Universal action - works with any project type. You provide the build environment.**
 
 **For Foundry projects:**
 ```yaml
@@ -278,15 +278,25 @@ on:
 jobs:
   auto-fix:
     if: github.event.workflow_run.conclusion == 'failure'
-    uses: teliha/dev-workflows/.github/workflows/fix-ci-foundry.yml@main
-    with:
-      foundry_version: nightly
-      failed_run_id: ${{ github.event.workflow_run.id }}
-      failed_branch: ${{ github.event.workflow_run.head_branch }}
-      pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      # Setup your build environment
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - run: forge install
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/fix-ci@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          failed_run_id: ${{ github.event.workflow_run.id }}
+          failed_branch: ${{ github.event.workflow_run.head_branch }}
+          pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
 ```
 
 **For Node.js/Next.js projects:**
@@ -301,22 +311,32 @@ on:
 jobs:
   auto-fix:
     if: github.event.workflow_run.conclusion == 'failure'
-    uses: teliha/dev-workflows/.github/workflows/fix-ci-nodejs.yml@main
-    with:
-      node_version: '20'
-      failed_run_id: ${{ github.event.workflow_run.id }}
-      failed_branch: ${{ github.event.workflow_run.head_branch }}
-      pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      
+      # Setup your build environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/fix-ci@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          failed_run_id: ${{ github.event.workflow_run.id }}
+          failed_branch: ${{ github.event.workflow_run.head_branch }}
+          pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
 ```
 
 ---
 
-#### 4. Improve Coverage Workflows
+#### 4. Improve Coverage (Composite Action)
 
-**Choose the workflow for your project type:**
+**Universal action - works with any project type. You provide the build environment.**
 
 **For Foundry projects:**
 ```yaml
@@ -329,15 +349,24 @@ on:
 
 jobs:
   coverage:
-    uses: teliha/dev-workflows/.github/workflows/improve-coverage-foundry.yml@main
-    with:
-      foundry_version: nightly
-      test_match_path: "test/unit/*"
-      target_coverage_increase: "5"
-      base_branch: main
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # Setup your build environment
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - run: forge install
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          target_coverage_increase: "5"
+          base_branch: main
 ```
 
 **For Node.js/Next.js projects:**
@@ -351,14 +380,24 @@ on:
 
 jobs:
   coverage:
-    uses: teliha/dev-workflows/.github/workflows/improve-coverage-nodejs.yml@main
-    with:
-      node_version: '20'
-      target_coverage_increase: "5"
-      base_branch: main
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # Setup your build environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      
+      # Use the composite action
+      - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          target_coverage_increase: "5"
+          base_branch: main
 ```
 
 ---
@@ -521,7 +560,7 @@ jobs:
 
 ### Example 2: Auto-Fix CI Failures (Foundry)
 
-**GitHub Actions:**
+**GitHub Actions - Composite Action:**
 ```yaml
 on:
   workflow_run:
@@ -531,50 +570,60 @@ on:
 jobs:
   auto-fix:
     if: github.event.workflow_run.conclusion == 'failure'
-    uses: teliha/dev-workflows/.github/workflows/fix-ci-foundry.yml@main
-    with:
-      failed_run_id: ${{ github.event.workflow_run.id }}
-      failed_branch: ${{ github.event.workflow_run.head_branch }}
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # You setup your build environment
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      
+      # Then use the action
+      - uses: teliha/dev-workflows/.github/actions/fix-ci@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          failed_run_id: ${{ github.event.workflow_run.id }}
+          failed_branch: ${{ github.event.workflow_run.head_branch }}
 ```
 
 **What it does:**
-- Sets up Foundry toolchain
 - Analyzes CI failure logs
-- Fixes code issues
+- Fixes code issues using your build environment
 - Runs `forge fmt`, `forge build`, `forge test`
 - Creates PR with fixes
 
-### Example 3: Auto-Fix CI Failures (Node.js)
+### Example 3: Improve Coverage (Node.js)
 
-**GitHub Actions:**
+**GitHub Actions - Composite Action:**
 ```yaml
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  schedule:
+    - cron: "0 */8 * * *"
 
 jobs:
-  auto-fix:
-    if: github.event.workflow_run.conclusion == 'failure'
-    uses: teliha/dev-workflows/.github/workflows/fix-ci-nodejs.yml@main
-    with:
-      failed_run_id: ${{ github.event.workflow_run.id }}
-      failed_branch: ${{ github.event.workflow_run.head_branch }}
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # You setup your build environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      
+      # Then use the action
+      - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          target_coverage_increase: "5"
 ```
 
 **What it does:**
-- Sets up Node.js environment
-- Installs dependencies
-- Analyzes CI failure logs
-- Fixes code issues
-- Runs `npm run lint`, `npm test`, `npm run build`
-- Creates PR with fixes
+- Analyzes test coverage using your build environment
+- Adds new test cases
+- Runs `npm test -- --coverage`
+- Creates PR with new tests
 
 ## Contributing
 

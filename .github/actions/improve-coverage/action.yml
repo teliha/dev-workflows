@@ -1,0 +1,71 @@
+name: Improve Test Coverage
+description: Analyze current test coverage and add new test cases using Claude Code
+
+inputs:
+  claude_code_oauth_token:
+    description: 'Claude Code OAuth token for authentication'
+    required: true
+  github_token:
+    description: 'GitHub token for API access'
+    required: false
+    default: ${{ github.token }}
+  target_coverage_increase:
+    description: 'Target coverage increase percentage'
+    required: false
+    default: '5'
+  base_branch:
+    description: 'Base branch for PR'
+    required: false
+    default: 'main'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup git identity
+      shell: bash
+      run: |
+        git config --global user.email "claude[bot]@users.noreply.github.com"
+        git config --global user.name "claude[bot]"
+
+    - name: Create improvement branch
+      id: branch
+      shell: bash
+      run: |
+        BRANCH_NAME="claude-improve-coverage-$(date +%Y%m%d-%H%M%S)"
+        git checkout -b "$BRANCH_NAME"
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+    - name: Improve coverage with Claude
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        github_token: ${{ inputs.github_token }}
+        prompt: |
+          /improve-coverage
+
+          ## Task
+
+          Analyze the current test coverage and add new test cases to improve it.
+
+          Target: Increase coverage by at least ${{ inputs.target_coverage_increase }}%
+
+          ## Important
+
+          Build tools are already installed in this environment.
+          Use project-appropriate commands:
+          - Foundry: `forge coverage`, `forge test`
+          - Node.js/Next.js: `npm run test:coverage` or `npm test -- --coverage`
+          - Python: `pytest --cov`
+
+          After adding tests:
+          1. Run tests to ensure they pass
+          2. Check coverage improvement
+          3. Commit changes: `git add . && git commit -m "test: improve coverage"`
+          4. Push: `git push origin ${{ steps.branch.outputs.branch_name }}`
+          5. Create PR using `gh pr create` targeting `${{ inputs.base_branch }}`
+
+    - name: Summary
+      if: always()
+      shell: bash
+      run: |
+        echo "::notice::Coverage improvement completed. Check the Claude Code Action output for details."

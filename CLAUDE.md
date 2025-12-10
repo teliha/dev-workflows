@@ -13,25 +13,27 @@ This is a **Claude Code plugin** that provides reusable development workflow com
 ```
 .
 ├── .claude-plugin/
-│   └── plugin.json                    # Plugin metadata and configuration
-├── .github/workflows/                 # Reusable GitHub Actions workflows
-│   ├── security-audit.yml             # Universal (no build required)
-│   ├── code-review.yml                # Universal (no build required)
-│   ├── spec-check.yml                 # Universal (no build required)
-│   ├── fix-ci-foundry.yml             # Foundry-specific (requires forge)
-│   ├── fix-ci-nodejs.yml              # Node.js-specific (requires npm)
-│   ├── improve-coverage-foundry.yml   # Foundry-specific (requires forge)
-│   └── improve-coverage-nodejs.yml    # Node.js-specific (requires npm)
-├── commands/                          # Claude Code slash commands (auto-detect in command)
+│   └── plugin.json                # Plugin metadata and configuration
+├── .github/
+│   ├── workflows/                 # Reusable workflows (no build required)
+│   │   ├── security-audit.yml     # Universal security audit
+│   │   ├── code-review.yml        # Universal code review
+│   │   └── spec-check.yml         # Universal spec validation
+│   └── actions/                   # Composite actions (build required)
+│       ├── fix-ci/
+│       │   └── action.yml         # Universal CI fix (caller provides build env)
+│       └── improve-coverage/
+│           └── action.yml         # Universal coverage improvement (caller provides build env)
+├── commands/                      # Claude Code slash commands (auto-detect in command)
 │   ├── audit.md
 │   ├── code-review.md
 │   ├── fix-ci.md
 │   ├── improve-coverage.md
 │   └── check-spec-contradictions.md
-└── skills/                            # Auto-activating skills
+└── skills/                        # Auto-activating skills
     └── audit/
         ├── README.md
-        └── skill.md                   # Smart contract security audit skill
+        └── skill.md               # Smart contract security audit skill
 
 ```
 
@@ -45,38 +47,63 @@ This is a **Claude Code plugin** that provides reusable development workflow com
 
 4. **Plugin Metadata** (`.claude-plugin/plugin.json`): Defines plugin name, version, author, and repository information.
 
-## Command Design Patterns
+## Architecture Design
 
-### Command Auto-Detection vs Workflow Separation
+### Commands vs Workflows vs Composite Actions
 
-**Commands** (slash commands like `/audit`, `/fix-ci`) use **auto-detection** internally - Claude detects the project type and adapts behavior.
+**Commands** (slash commands like `/audit`, `/fix-ci`):
+- Auto-detect project type internally
+- Claude decides what to do based on codebase
+- Used locally via Claude Code CLI or in Claude Code Action
 
-**Workflows** are **separated by project type** when they require different build environments:
+**Reusable Workflows** (for analysis tasks):
+- No build tools required
+- Work universally across all project types
+- Examples: `security-audit.yml`, `code-review.yml`
 
-**Universal Workflows (No build tools required):**
-- `security-audit.yml` - Static code analysis only
-- `code-review.yml` - Code review only
-- `spec-check.yml` - Documentation analysis only
+**Composite Actions** (for build/test tasks):
+- Caller provides the build environment
+- Action runs in the caller's environment
+- Universal - works with any project type
+- Examples: `fix-ci`, `improve-coverage`
 
-**Project-Specific Workflows (Build tools required):**
-- `fix-ci-foundry.yml` / `fix-ci-nodejs.yml` - Need to run tests/builds
-- `improve-coverage-foundry.yml` / `improve-coverage-nodejs.yml` - Need to run coverage tools
+### Why Composite Actions for Build Tasks?
 
-### Why This Design?
+**Previous approach (project-specific workflows):**
+```yaml
+# fix-ci-foundry.yml
+- uses: foundry-rs/foundry-toolchain@v1
+- run: forge install
+- uses: claude-code-action@v1
 
-1. **Analysis workflows don't need builds** - `/audit` just reads source code, so one universal workflow works for all project types
-2. **Build workflows need specific tools** - `/fix-ci` needs to run `forge test` or `npm test`, requiring project-specific setup
-3. **Simpler and faster** - No conditional setup steps, workflows are cleaner and execute faster
-4. **Easier to maintain** - Adding Python support means creating `fix-ci-python.yml`, not modifying complex conditional logic
+# fix-ci-nodejs.yml
+- uses: actions/setup-node@v4
+- run: npm ci
+- uses: claude-code-action@v1
+```
+❌ Duplicate workflows for each project type
 
-### Command Auto-Detection Logic
+**New approach (composite action):**
+```yaml
+# Caller's workflow (Foundry)
+- uses: foundry-rs/foundry-toolchain@v1
+- run: forge install
+- uses: teliha/dev-workflows/.github/actions/fix-ci@main
 
-When commands like `/audit` or `/fix-ci` run via Claude Code Action:
+# Caller's workflow (Node.js)
+- uses: actions/setup-node@v4
+- run: npm ci
+- uses: teliha/dev-workflows/.github/actions/fix-ci@main
+```
+✅ One universal action, caller controls setup
 
-1. Claude reads the codebase
-2. Detects project type from files (`foundry.toml`, `package.json`, etc.)
-3. Applies appropriate analysis or fixes
-4. Uses the correct commands for that project type
+### Benefits
+
+1. **Caller controls the build environment** - You decide which versions, tools, etc.
+2. **Truly universal** - Works with any project type (Foundry, Node.js, Python, Go, Rust...)
+3. **Simpler maintenance** - One action instead of N workflows
+4. **Flexible** - Caller can add custom setup steps before the action
+5. **No duplication** - DRY principle
 
 ### Command Structure
 

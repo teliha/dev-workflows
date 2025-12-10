@@ -1,0 +1,137 @@
+name: Auto Fix CI
+description: Analyze CI failure logs and automatically fix issues using Claude Code
+
+inputs:
+  claude_code_oauth_token:
+    description: 'Claude Code OAuth token for authentication'
+    required: true
+  github_token:
+    description: 'GitHub token for API access'
+    required: false
+    default: ${{ github.token }}
+  failed_run_id:
+    description: 'Failed workflow run ID'
+    required: true
+  failed_branch:
+    description: 'Branch that failed CI'
+    required: true
+  pr_number:
+    description: 'Pull request number'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup git identity
+      shell: bash
+      run: |
+        git config --global user.email "claude[bot]@users.noreply.github.com"
+        git config --global user.name "claude[bot]"
+
+    - name: Create fix branch
+      id: branch
+      shell: bash
+      run: |
+        BRANCH_NAME="claude-auto-fix-ci-${{ inputs.failed_branch }}-$(date +%s)"
+        git checkout -b "$BRANCH_NAME"
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+    - name: Get CI failure details
+      id: failure_details
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const run = await github.rest.actions.getWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: ${{ inputs.failed_run_id }}
+          });
+
+          const jobs = await github.rest.actions.listJobsForWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: ${{ inputs.failed_run_id }}
+          });
+
+          const failedJobs = jobs.data.jobs.filter(job => job.conclusion === 'failure');
+
+          let errorDetails = [];
+          for (const job of failedJobs) {
+            try {
+              const logs = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                job_id: job.id
+              });
+
+              const logText = typeof logs.data === 'string' ? logs.data : '';
+              const errorLines = logText.split('\n')
+                .filter(line =>
+                  line.includes('Error') ||
+                  line.includes('FAIL') ||
+                  line.includes('error:') ||
+                  line.includes('failed') ||
+                  line.includes('assertion failed')
+                )
+                .slice(0, 100);
+
+              errorDetails.push({
+                jobName: job.name,
+                errorSummary: errorLines.join('\n')
+              });
+            } catch (error) {
+              errorDetails.push({
+                jobName: job.name,
+                errorSummary: 'Could not fetch detailed logs'
+              });
+            }
+          }
+
+          return {
+            runUrl: run.data.html_url,
+            failedJobs: failedJobs.map(j => j.name),
+            errorDetails: errorDetails
+          };
+
+    - name: Fix CI failures with Claude
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        github_token: ${{ inputs.github_token }}
+        prompt: |
+          /fix-ci
+
+          ## CI Failure Context
+
+          **Failed CI Run**: ${{ fromJSON(steps.failure_details.outputs.result).runUrl }}
+          **Failed Jobs**: ${{ join(fromJSON(steps.failure_details.outputs.result).failedJobs, ', ') }}
+          **PR Number**: ${{ inputs.pr_number }}
+          **Branch**: ${{ steps.branch.outputs.branch_name }}
+          **Base Branch**: ${{ inputs.failed_branch }}
+
+          ## Error Details
+
+          ${{ toJSON(fromJSON(steps.failure_details.outputs.result).errorDetails) }}
+
+          ## Instructions
+
+          Build tools are already installed in this environment.
+
+          1. Analyze the CI failure logs
+          2. Fix the issues (compilation, tests, linting, formatting)
+          3. Verify fixes using appropriate commands for the project type:
+             - Foundry: `forge fmt`, `forge build`, `forge test`
+             - Node.js: `npm run lint`, `npm test`, `npm run build`
+             - Python: `pytest`, `black`, `mypy`
+          4. Commit and push:
+             - `git add .`
+             - `git commit -m "fix: auto-fix CI failures"`
+             - `git push origin ${{ steps.branch.outputs.branch_name }}`
+          5. Create PR using `gh pr create` targeting `${{ inputs.failed_branch }}`
+
+    - name: Summary
+      if: always()
+      shell: bash
+      run: |
+        echo "::notice::CI fix completed. Check the Claude Code Action output for details."
