@@ -1,0 +1,89 @@
+name: Spec Contradiction Check
+
+on:
+  workflow_call:
+    inputs:
+      specs_directory:
+        description: 'Directory containing spec files'
+        required: false
+        type: string
+        default: 'specs/'
+      docs_directory:
+        description: 'Directory containing documentation'
+        required: false
+        type: string
+        default: 'docs/'
+      create_issue_on_findings:
+        description: 'Create GitHub issue for critical/high findings'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  check-specs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Check for spec contradictions
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            /check-spec-contradictions
+
+            ## Task: Analyze Specification Files for Contradictions
+
+            Please analyze all specification files in:
+            - `${{ inputs.specs_directory }}`
+            - `${{ inputs.docs_directory }}`
+
+            Look for:
+            1. Cross-file contradictions
+            2. Internal inconsistencies
+            3. Language inconsistencies (EN vs JA)
+            4. Implementation mismatches
+            5. Ambiguities & gaps
+
+            Generate a report: `spec-contradiction-report-$(date +%Y%m%d-%H%M%S).md`
+
+            If you find **Critical or High severity** issues, create a GitHub issue using:
+
+            ```bash
+            gh issue create \
+              --title "❓ Spec Clarification Needed - $(date +%Y-%m-%d)" \
+              --label "question,documentation" \
+              --body "$(cat issue-body.md)"
+            ```
+
+            The issue should include:
+            - Summary of contradictions
+            - Questions requiring clarification
+            - Link to workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - List of files analyzed
+          claude_args: '--allowed-tools "Read,Write,Glob,Grep,Bash(gh:*),Bash(find:*),Bash(cat:*),Bash(date:*)"'
+
+      - name: Upload contradiction report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-contradiction-report-${{ github.run_number }}
+          path: |
+            spec-contradiction-report-*.md
+          retention-days: 90
