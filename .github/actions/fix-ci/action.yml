@@ -3,20 +3,19 @@ description: Analyze CI failure logs and automatically fix issues using Claude C
 
 inputs:
   claude_code_oauth_token:
-    description: 'Claude Code OAuth token for authentication'
+    description: "Claude Code OAuth token for authentication"
     required: true
   github_token:
-    description: 'GitHub token for API access'
-    required: false
-    default: ${{ github.token }}
+    description: "GitHub token for API access"
+    required: true
   failed_run_id:
-    description: 'Failed workflow run ID'
+    description: "Failed workflow run ID"
     required: true
   failed_branch:
-    description: 'Branch that failed CI'
+    description: "Branch that failed CI"
     required: true
   pr_number:
-    description: 'Pull request number'
+    description: "Pull request number"
     required: false
 
 runs:

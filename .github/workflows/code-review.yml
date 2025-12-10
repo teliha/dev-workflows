@@ -30,7 +30,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@v1

@@ -5,6 +5,9 @@ inputs:
   claude_code_oauth_token:
     description: OAuth token for Claude Code authentication
     required: true
+  github_token:
+    description: GitHub token for API access
+    required: true
   base_branch:
     description: Base branch to create PR against
     required: false
@@ -34,7 +37,7 @@ runs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
         fi
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.github_token }}
 
     - name: Fix lint warning with Claude
       uses: anthropics/claude-code-action@v1
@@ -75,7 +78,7 @@ runs:
 
           Only fix ONE warning per run to keep changes focused and reviewable.
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Summary
       shell: bash

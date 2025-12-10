@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Claude Code Audit
         id: audit
@@ -47,7 +48,7 @@ jobs:
 
             2. The GITHUB_TOKEN is available in the environment for gh CLI authentication.
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload audit report
         if: always()
