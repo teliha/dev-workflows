@@ -1,96 +1,97 @@
-Fix one important lint or static analysis warning.
+---
+description: Fix one important lint or static analysis warning
+---
 
-## Detection Strategy
+# Fix Lint Command
 
-Auto-detect the project type and use the appropriate linter:
+Fix one important lint or static analysis warning with proper prioritization.
 
-1. **Foundry (Solidity)**:
-   - Check for `foundry.toml`
-   - Run: `forge lint` to find linting issues (if available)
-   - Run: `forge fmt --check` to find formatting issues
-   - Run: `forge build` to find compilation warnings
-   - If solhint is available: `npx solhint 'contracts/**/*.sol'`
+This command uses the [Lint Fix Expert skill](../skills/fix-lint/skill.md) for targeted fixes.
 
-2. **Rust**:
-   - Check for `Cargo.toml`
-   - Run: `cargo clippy --all-targets --all-features -- -W clippy::all`
+## Usage
 
-3. **TypeScript/JavaScript**:
-   - Check for `package.json`
-   - Run: `npm run lint` (if available in scripts)
-   - Or: `eslint .` (if eslint is installed)
-   - Or: `tsc --noEmit` (for TypeScript type errors)
-
-4. **Next.js**:
-   - Check for `next.config.js` or `next.config.ts`
-   - Run: `npm run lint` (Next.js has built-in ESLint)
-
-## Priority Levels
-
-When selecting which warning to fix, prioritize in this order:
-
-1. **Security issues** (e.g., unsafe operations, SQL injection risks)
-2. **Correctness issues** (e.g., type errors, logic bugs)
-3. **Performance issues** (e.g., unnecessary allocations, inefficient loops)
-4. **Code quality** (e.g., unused variables, deprecated APIs)
-5. **Style issues** (e.g., formatting, naming conventions)
-
-## Fix Process
-
-1. Run the linter to get the full list of warnings
-2. Select ONE important warning based on priority
-3. Analyze the code and understand the warning
-4. Fix the issue by modifying the source code
-5. Run the linter again to verify the fix
-6. Commit with format: `fix(lint): [description]`
-7. Push to the current branch
-
-## Examples
-
-### Foundry Example
 ```bash
-# Run linter (if available)
-forge lint
-
-# Check formatting
-forge fmt --check
-
-# Fix one formatting issue
-forge fmt contracts/MyContract.sol
-
-# Verify
-forge build
+/fix-lint
 ```
 
-### Rust Example
-```bash
-# Get warnings
-cargo clippy --all-targets --all-features
+## What It Does
 
-# Fix one warning (e.g., unused variable)
-# Edit the file to remove or prefix with underscore
+The skill automatically:
 
-# Verify
-cargo clippy --all-targets --all-features
+1. **Detects linter** - ESLint, Clippy, Solhint, etc.
+2. **Gets warnings** - Runs linter to list all issues
+3. **Prioritizes** - Selects highest priority warning
+4. **Fixes ONE** - Applies targeted fix
+5. **Verifies** - Re-runs linter and tests
+
+## Priority Order
+
+| Priority | Type | Examples |
+|----------|------|----------|
+| 1 | Security | Unsafe operations, injection risks |
+| 2 | Correctness | Type errors, logic bugs |
+| 3 | Performance | Inefficient loops, allocations |
+| 4 | Quality | Unused code, deprecated APIs |
+| 5 | Style | Formatting, naming |
+
+## Supported Linters
+
+| Project | Linter | Command |
+|---------|--------|---------|
+| TypeScript/JS | ESLint | `npm run lint` |
+| Next.js | ESLint | `npm run lint` |
+| Rust | Clippy | `cargo clippy` |
+| Solidity | Forge/Solhint | `forge fmt` |
+
+## Why One at a Time?
+
+- Clear, reviewable commits
+- Easy to track what changed
+- Safe to revert if needed
+- Better git history
+
+## Example Fix
+
+```markdown
+## Lint Fix Summary
+
+### Warning Fixed
+**Rule**: @typescript-eslint/no-unused-vars
+**File**: `src/utils.ts:42`
+
+### Fix Applied
+```diff
+- const x = getValue();
++ const _x = getValue();
 ```
 
-### TypeScript Example
-```bash
-# Get warnings
-npm run lint
-
-# Fix one warning (e.g., missing await)
-# Edit the file to add await
-
-# Verify
-npm run lint
+### Verification
+- [x] Linter passes
+- [x] Tests pass
 ```
 
-## Output
+## Integration with CI/CD
 
-Generate a concise commit message that describes:
-- What warning was fixed
-- Which file was modified
-- Brief explanation if the fix isn't obvious
+```yaml
+name: Fix Lint
 
-Keep changes minimal and focused on fixing just ONE warning.
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: /fix-lint
+```
+
+## Related
+
+- [Lint Fix Expert Skill](../skills/fix-lint/skill.md) - Detailed fix process
+- [Fix CI Command](./fix-ci.md) - Fix all CI failures including lint
