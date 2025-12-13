@@ -23,11 +23,7 @@
         "foundry",
         "nextjs",
         "solidity"
-      ],
-      "repository": {
-        "type": "git",
-        "url": "https://github.com/teliha/dev-workflows"
-      }
+      ]
     }
   ]
 }
