@@ -3,9 +3,18 @@
   "description": "Automated development workflows for any project - security audits, coverage improvement, CI fixes, and spec validation. Supports Foundry/Solidity, Next.js, and more.",
   "version": "1.0.0",
   "author": {
-    "name": "PREX Trade Team"
+    "name": "Teliha Team"
   },
-  "keywords": ["ci-cd", "automation", "testing", "security", "code-review", "foundry", "nextjs", "solidity"],
+  "keywords": [
+    "ci-cd",
+    "automation",
+    "testing",
+    "security",
+    "code-review",
+    "foundry",
+    "nextjs",
+    "solidity"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/teliha/dev-workflows"
