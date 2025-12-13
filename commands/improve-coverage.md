@@ -6,82 +6,61 @@ description: Analyze test coverage and add tests to improve coverage
 
 Analyze test coverage and add new test cases to improve coverage without changing implementation.
 
-## Auto-Detection
+This command uses the [Test Coverage Improvement Expert skill](../skills/improve-coverage/skill.md) for analysis and test generation.
 
-This command automatically detects your project type and uses the appropriate tools:
+## Usage
 
-### Foundry/Solidity
 ```bash
-forge coverage --report summary
+/improve-coverage
 ```
 
-### Next.js/Jest
-```bash
-npm run test:coverage
-# or
-jest --coverage
-```
+## What It Does
 
-### Vitest
-```bash
-vitest --coverage
-```
+The improve-coverage skill automatically:
 
-### Other Projects
-Will attempt to detect test framework from package.json or project structure.
-
-## Task
-
-1. **Run coverage analysis**:
-   - Foundry: `forge coverage --report lcov`
-   - Jest: `jest --coverage`
-   - Vitest: `vitest --coverage`
-
-2. **Identify uncovered code paths**:
-   - Functions with <80% coverage
-   - Error cases not tested
-   - Edge cases (zero values, max values, etc.)
-   - State transitions
-   - Boundary conditions
-
-3. **Add new test cases**:
-   - Add to existing test files in `test/` or `__tests__/`
-   - Create new test files if needed
-   - Follow existing test patterns
-   - Use descriptive test names
-
-4. **Focus Areas**:
-   - Functions with low coverage
-   - Error conditions (throws, reverts, rejects)
-   - Edge cases and boundary conditions
-   - State transitions
-   - Access control checks
-
-5. **Verification**:
-   - Run tests to ensure all pass
-   - Run coverage again to verify improvement
-   - Target: Increase coverage by at least 5%
-
-6. **Format and commit**:
-   - Format code (forge fmt, prettier, etc.)
-   - Commit: `git add test/ && git commit -m "test: improve coverage for [Feature]"`
+1. **Runs coverage analysis** - Uses appropriate tool for project type
+2. **Identifies gaps** - Functions, branches, and lines not covered
+3. **Prioritizes** - Critical paths and security functions first
+4. **Writes tests** - Following existing patterns
+5. **Verifies improvement** - Confirms coverage increase
 
 ## Critical Rules
 
-- ❌ DO NOT modify any implementation code
-- ❌ DO NOT refactor existing tests  
-- ❌ DO NOT change production code behavior
-- ✅ ONLY add new test cases
-- ✅ Follow existing test patterns
-- ✅ Use descriptive test names
-- ✅ Add comments explaining test purpose
-- ✅ Ensure all tests pass
+| DO | DON'T |
+|----|-------|
+| Add new test cases | Modify implementation code |
+| Follow existing patterns | Refactor existing tests |
+| Use descriptive names | Change production behavior |
+| Ensure all tests pass | Skip verification |
 
-## Project-Specific Patterns
+## Coverage Goals
 
-### Foundry Projects
+| Area | Target |
+|------|--------|
+| Critical paths | 100% |
+| Business logic | 90%+ |
+| Utilities | 80%+ |
+| UI components | 70%+ |
+
+## Project Support
+
+| Project | Coverage Command |
+|---------|-----------------|
+| Foundry | `forge coverage --report summary` |
+| Jest | `jest --coverage` |
+| Vitest | `vitest --coverage` |
+
+## Test Case Categories
+
+- **Success cases**: Normal operation with valid inputs
+- **Error cases**: Invalid inputs, unauthorized access
+- **Edge cases**: Zero values, max values, boundaries
+- **State transitions**: Multi-step processes
+
+## Example Tests
+
+### Foundry/Solidity
 ```solidity
-// test/MyContract.t.sol
 function test_RevertWhen_Unauthorized() public {
     vm.prank(unauthorizedUser);
     vm.expectRevert(MyContract.Unauthorized.selector);
@@ -89,38 +68,38 @@ function test_RevertWhen_Unauthorized() public {
 }
 ```
 
-### Next.js/Jest Projects
+### Jest/TypeScript
 ```typescript
-// __tests__/api/users.test.ts
-describe('GET /api/users', () => {
-  it('should return 401 when unauthorized', async () => {
+it('should return 401 when unauthorized', async () => {
     const res = await request(app).get('/api/users');
     expect(res.status).toBe(401);
-  });
 });
 ```
 
-### React Component Tests
-```typescript
-// components/__tests__/Button.test.tsx
-it('should call onClick when clicked', () => {
-  const onClick = jest.fn();
-  render(<Button onClick={onClick}>Click</Button>);
-  fireEvent.click(screen.getByText('Click'));
-  expect(onClick).toHaveBeenCalledTimes(1);
-});
+## Integration with CI/CD
+
+```yaml
+name: Improve Coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - uses: teliha/dev-workflows/.github/actions/improve-coverage@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Coverage Goals
+## Related
 
-Target coverage levels:
-- **Critical paths**: 100%
-- **Business logic**: 90%+
-- **Utilities**: 80%+
-- **UI components**: 70%+
-
-Focus on:
-1. Security-critical functions
-2. Complex business logic
-3. Error handling
-4. Edge cases
+- [Test Coverage Improvement Skill](../skills/improve-coverage/skill.md) - Detailed process
+- [Code Review Command](./code-review.md) - Review including test coverage

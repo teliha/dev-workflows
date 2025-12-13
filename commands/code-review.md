@@ -6,87 +6,76 @@ description: Review pull request code for quality, security, and best practices
 
 Perform a comprehensive code review of the current pull request and provide constructive feedback.
 
-## Instructions
+This command uses the [Code Review Expert skill](../skills/code-review/skill.md) for detailed analysis.
 
-Please review this pull request and provide feedback on:
+## Usage
 
-### Security Analysis
-- Potential security vulnerabilities
-- Access control issues
-- Input validation problems
-- External call safety
-- Reentrancy risks
+```bash
+/code-review
+```
 
-### Code Quality
-- Best practices adherence
-- Code clarity and maintainability
-- Error handling
-- Edge case coverage
-- Naming conventions
+## What It Does
 
-### Performance Considerations
-- Gas optimization opportunities (for Solidity)
-- Inefficient patterns
-- Unnecessary computations
-- Storage vs memory usage
+The code review skill automatically:
 
-### Testing
-- Test coverage for new code
-- Missing test cases
-- Edge cases not covered
+1. **Analyzes the PR** - Gets diff and changed files
+2. **Reviews systematically** across:
+   - Security vulnerabilities
+   - Code quality and maintainability
+   - Performance considerations
+   - Test coverage
+   - Architecture and design
+3. **Posts feedback** as a PR comment
 
-### Architecture
-- Design pattern usage
-- Code organization
-- Separation of concerns
+## Review Categories
 
-## Review Guidelines
-
-1. **Be Constructive**: Provide specific, actionable feedback
-2. **Prioritize**: Highlight critical issues first
-3. **Explain Why**: Don't just point out issues, explain the reasoning
-4. **Suggest Fixes**: Provide code examples where helpful
-5. **Acknowledge Good Work**: Point out well-written code too
+| Category | What's Checked |
+|----------|---------------|
+| Security | Vulnerabilities, access control, input validation |
+| Quality | Best practices, error handling, naming |
+| Performance | Gas optimization, efficiency, caching |
+| Testing | Coverage, edge cases, error conditions |
+| Architecture | Patterns, organization, separation of concerns |
 
 ## Output Format
 
-After reviewing the code, use the `gh pr comment` command to post your review:
-
-```bash
-gh pr comment <PR_NUMBER> --body "## Code Review
-
-### Summary
-[Brief overview of the PR]
-
-### Critical Issues
-[List any critical security or functionality issues]
-
-### Suggestions
-[List improvements and optimizations]
-
-### Positive Findings
-[Highlight well-written code]
-
-### Recommendation
-- [ ] Approve
-- [ ] Request Changes
-- [ ] Comment Only
-"
-```
+Reviews are posted as PR comments with:
+- Summary of findings
+- Critical issues (must fix)
+- Suggestions (should consider)
+- Positive findings (well-done areas)
+- Recommendation (approve/request changes/comment)
 
 ## Project-Specific Context
 
-When reviewing Foundry/Solidity projects:
-- Check for proper use of Foundry test patterns
-- Verify Solidity version compatibility (0.8.24)
-- Look for integration issues with external protocols (EVK, Uniswap, etc.)
-- Ensure `forge fmt` has been run
-- Verify test coverage with `forge coverage`
+### Foundry/Solidity
+- Checks Foundry test patterns
+- Verifies `forge fmt` compliance
+- Reviews EVK/EVC integration patterns
 
-For EVK/EVC integration:
-- Verify `callThroughEVC` modifier usage on operators
-- Check `evc.getCurrentOnBehalfOfAccount()` for user identification
-- Ensure `evc.requireAccountStatusCheck()` is called after state changes
-- Validate vault operations go through EVC
+### Next.js/TypeScript
+- TypeScript type safety
+- React best practices
+- API route security
 
-Use the repository's CLAUDE.md file for project-specific conventions and patterns.
+## Integration with CI/CD
+
+```yaml
+name: Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    uses: teliha/dev-workflows/.github/workflows/code-review.yml@main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## Related
+
+- [Code Review Expert Skill](../skills/code-review/skill.md) - Detailed review process
+- [Audit Command](./audit.md) - Deep security audit
