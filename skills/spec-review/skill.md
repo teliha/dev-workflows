@@ -83,7 +83,40 @@ Understand:
 - What is the scope?
 - Who is the audience?
 
-### Step 2: Systematic Review
+### Step 2: Systematic Review (PARALLEL CATEGORIES)
+
+**PARALLELIZATION OPPORTUNITY**: Run review categories in parallel for comprehensive analysis:
+
+```
+Use the Task tool with parallel subagents for each category:
+
+Task 1: Completeness Review
+  - Check all required sections present
+  - Verify scope coverage
+  - Identify missing requirements
+
+Task 2: Clarity Review
+  - Find ambiguous terms
+  - Check for undefined thresholds
+  - Verify ownership clarity
+
+Task 3: Testability Review
+  - Check acceptance criteria
+  - Verify measurable requirements
+  - Review test scenarios
+
+Task 4: Edge Cases & Consistency Review
+  - Check boundary conditions
+  - Verify internal consistency
+  - Check terminology alignment
+
+Task 5: Technical & Security Review
+  - Verify feasibility
+  - Check security considerations
+  - Review authentication/authorization
+```
+
+Each subagent reviews independently with fresh eyes, results are combined into final report.
 
 ## Review Categories
 
@@ -429,7 +462,25 @@ This skill works well with:
 
 ```
 Write Spec → Spec Review (this skill) → Fix Issues →
-  → Check Contradictions → Implement → Implementation Review
+  → Check Contradictions → [USER DECISION] → Implement → Implementation Review
 ```
+
+## IMPORTANT: Post-Approval Behavior
+
+**After spec is approved, DO NOT automatically start implementation.**
+
+When the spec review passes (SPEC APPROVED):
+1. Report the approval to the user
+2. **STOP and wait for explicit user instruction**
+3. User decides whether to:
+   - Proceed with implementation
+   - Make additional changes
+   - Check contradictions with other specs
+   - Do something else entirely
+
+**Rationale**: The user should maintain control over when implementation begins. Automatic implementation could:
+- Start work the user isn't ready for
+- Miss opportunities for user to review the final spec
+- Skip important steps in the user's workflow
 
 <!-- SPEC-REVIEW:END -->
