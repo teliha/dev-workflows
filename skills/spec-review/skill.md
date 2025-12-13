@@ -22,6 +22,56 @@ This skill automatically activates when:
 
 Ensure specifications are complete, clear, and implementable BEFORE development begins. Catching issues in specs is much cheaper than fixing them in code.
 
+## CRITICAL: Context Isolation for Objective Review
+
+**Problem**: If you (Claude) helped write the specification, reviewing it in the same conversation introduces bias. You may unconsciously:
+- Assume things that aren't written (because you remember the discussion)
+- Overlook issues you introduced
+- Be lenient on ambiguous parts you understood from context
+
+**Solution**: Always perform reviews with a FRESH context using a subagent.
+
+### How to Ensure Clean Context
+
+**MANDATORY**: When reviewing a specification, spawn a NEW agent with NO prior context:
+
+```
+Use the Task tool with subagent_type="general-purpose" and a prompt that:
+1. Contains ONLY the spec file path to review
+2. Does NOT include conversation history
+3. Asks for objective review against the checklist
+```
+
+**Example invocation:**
+```
+Task: Review specification
+Prompt: |
+  You are reviewing a specification file with fresh eyes.
+  You have NO prior context about this spec - you are seeing it for the first time.
+
+  Please read and review: specs/feature/spec.md
+
+  Review against these criteria:
+  - Completeness: Are all necessary sections present?
+  - Clarity: Are there any ambiguous terms?
+  - Testability: Can acceptance criteria be objectively verified?
+  - Edge Cases: Are boundary conditions covered?
+  - Consistency: Is the spec internally consistent?
+
+  Be critical and objective. Flag anything unclear or missing.
+  Generate a detailed review report.
+```
+
+### Why This Matters
+
+| With Context | Without Context |
+|--------------|-----------------|
+| "I know what they meant by 'fast'" | "What is 'fast'? Not defined." |
+| "We discussed error handling" | "Error handling section is missing" |
+| "The edge cases are obvious" | "Edge cases not documented" |
+
+**The reviewer should have NO memory of writing the spec.**
+
 ## Review Process
 
 ### Step 1: Read the Entire Specification

@@ -22,6 +22,100 @@ This skill automatically activates when:
 
 Ensure that implementations fully and correctly match their specifications through systematic self-review and iterative improvement.
 
+## CRITICAL: Context Isolation for Objective Review
+
+**Problem**: If you (Claude) wrote the implementation, reviewing it in the same conversation introduces severe bias:
+- You remember WHY you wrote it that way (but the code might not reflect it)
+- You unconsciously fill in gaps from memory
+- You're lenient on your own code
+- You miss bugs you introduced
+
+**Solution**: Always perform reviews with a FRESH context using a subagent.
+
+### How to Ensure Clean Context
+
+**MANDATORY**: When reviewing implementation against spec, spawn a NEW agent with NO prior context:
+
+```
+Use the Task tool with subagent_type="general-purpose" and a prompt that:
+1. Contains ONLY the spec file path and implementation file paths
+2. Does NOT include any conversation history
+3. Does NOT mention what was discussed or decided
+4. Asks for objective comparison against the spec
+```
+
+**Example invocation:**
+```
+Task: Review implementation against spec
+Prompt: |
+  You are reviewing an implementation with completely fresh eyes.
+  You have NO prior context - you are seeing this code for the first time.
+
+  SPECIFICATION: specs/feature/spec.md
+  IMPLEMENTATION FILES:
+  - src/feature/index.ts
+  - src/feature/utils.ts
+
+  Your task:
+  1. Read the specification completely
+  2. Read all implementation files
+  3. Compare implementation against EVERY requirement in the spec
+  4. Flag ANY gap, missing feature, or deviation
+  5. Be critical and thorough - assume nothing
+
+  Generate a detailed gap report with:
+  - Each requirement and its implementation status
+  - Missing or incomplete implementations
+  - Deviations from spec
+  - Specific fixes needed
+```
+
+### Why This Matters
+
+| Reviewer with Context | Reviewer without Context |
+|----------------------|--------------------------|
+| "I handled that edge case" | "Edge case X is not handled in code" |
+| "The error handling is there" | "No try/catch around API call" |
+| "That validation is implicit" | "Input validation is missing" |
+
+**The reviewer must have ZERO memory of writing the code.**
+
+### Review Loop with Context Isolation
+
+```
+┌─────────────────────────────────────────────────────┐
+│              CONTEXT-ISOLATED REVIEW LOOP            │
+│                                                      │
+│  ┌──────────┐    ┌──────────────┐    ┌──────────┐  │
+│  │  Spec +  │───▶│  SUBAGENT    │───▶│  Gaps?   │  │
+│  │  Impl    │    │ (Fresh eyes) │    │          │  │
+│  └──────────┘    └──────────────┘    └────┬─────┘  │
+│                                           │         │
+│                             ┌─────────────┴───┐     │
+│                             ▼                 ▼     │
+│                        ┌────────┐       ┌────────┐  │
+│                        │  YES   │       │   NO   │  │
+│                        └───┬────┘       │ (Done) │  │
+│                            │            └────────┘  │
+│                            ▼                        │
+│                       ┌─────────┐                   │
+│                       │  Apply  │                   │
+│                       │  Fixes  │                   │
+│                       └────┬────┘                   │
+│                            │                        │
+│                            ▼                        │
+│                   ┌────────────────┐                │
+│                   │ NEW SUBAGENT   │────────┐       │
+│                   │ (Fresh review) │        │       │
+│                   └────────────────┘        │       │
+│                            ▲                │       │
+│                            └────────────────┘       │
+│                         (Each review = new agent)   │
+└─────────────────────────────────────────────────────┘
+```
+
+**Each iteration of the review loop should use a NEW subagent.**
+
 ## Review Loop Process
 
 ### Overview
