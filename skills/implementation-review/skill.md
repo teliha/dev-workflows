@@ -160,9 +160,41 @@ find requirements/ -name "*.md" -type f
 
 **Ask if unclear**: "Which specification file should I review against?"
 
-### Step 2: Read Specification Completely
+### Step 2 & 3: Read Spec and Implementation (PARALLEL)
 
-**CRITICAL**: Read the ENTIRE specification before reviewing.
+**CRITICAL**: Read the ENTIRE specification and ALL implementation files before reviewing.
+
+**PARALLELIZATION OPPORTUNITY**: Read spec and implementation files simultaneously:
+
+```
+Use the Task tool with parallel subagents:
+
+Task 1 (Spec Analysis):
+  - Read the complete specification
+  - Extract all requirements, constraints, edge cases
+  - Return structured list of checkpoints
+
+Task 2 (Implementation Discovery):
+  - Find all implementation files
+  - Read each file and identify:
+    - Public API / exports
+    - Key functions and their signatures
+    - Error handling patterns
+    - State management
+
+Task 3 (Test Analysis - if tests exist):
+  - Read existing test files
+  - Identify what's already tested
+  - Note coverage gaps
+```
+
+**Example parallel invocation:**
+```
+Launch subagents simultaneously:
+- Subagent 1: "Read specs/feature/spec.md and extract all requirements as JSON"
+- Subagent 2: "Find and read src/feature/*.ts, return function signatures and behaviors"
+- Subagent 3: "Read tests/feature/*.test.ts, return tested scenarios"
+```
 
 Extract from the spec:
 1. **Functional Requirements** - What the code must do
@@ -172,8 +204,6 @@ Extract from the spec:
 5. **Error Handling** - Expected error behaviors
 6. **Performance Requirements** - Speed, memory, gas limits
 7. **Security Requirements** - Access control, validation
-
-### Step 3: Identify Implementation Files
 
 Find all files that implement the specification:
 
@@ -185,7 +215,35 @@ find src/ -name "*.ts" -o -name "*.sol" -o -name "*.tsx"
 grep -r "FeatureName" src/
 ```
 
-### Step 4: Systematic Review
+### Step 4: Systematic Review (PARALLEL CATEGORIES)
+
+**PARALLELIZATION OPPORTUNITY**: Run review categories in parallel:
+
+```
+Use the Task tool with parallel subagents for each category:
+
+Task 1: Functional Completeness Review
+  - Check each requirement against implementation
+  - Return pass/fail for each requirement
+
+Task 2: Edge Cases Review
+  - Check all edge case handling
+  - Identify missing boundary checks
+
+Task 3: Error Handling Review
+  - Verify all error cases from spec
+  - Check error propagation
+
+Task 4: Security Review (if applicable)
+  - Check access control
+  - Verify input validation
+
+Task 5: Performance Review (if specified)
+  - Check performance requirements
+  - Identify inefficiencies
+```
+
+Each subagent reviews independently with fresh context, then results are combined.
 
 ## Review Checklist
 
@@ -473,5 +531,26 @@ require(amount > 0, InvalidAmount());
 
 Ready for code review and merge.
 ```
+
+## IMPORTANT: Post-Approval Behavior
+
+**After implementation review passes, DO NOT automatically proceed to next steps.**
+
+When the implementation review passes (ALL REQUIREMENTS MET):
+1. Report the approval to the user
+2. **STOP and wait for explicit user instruction**
+3. User decides whether to:
+   - Proceed with code review
+   - Create a pull request
+   - Merge to main branch
+   - Run additional tests
+   - Deploy to staging/production
+   - Do something else entirely
+
+**Rationale**: The user should maintain control over when to proceed. Automatic actions could:
+- Skip important steps in the user's workflow
+- Trigger deployments the user isn't ready for
+- Miss opportunities for manual review
+- Create PRs or merges without proper context
 
 <!-- IMPL-REVIEW:END -->

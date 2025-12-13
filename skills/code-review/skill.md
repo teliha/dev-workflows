@@ -52,7 +52,46 @@ gh pr diff <PR_NUMBER>
 gh pr view <PR_NUMBER> --json files
 ```
 
-### Step 3: Systematic Review
+### Step 3: Systematic Review (PARALLEL)
+
+**PARALLELIZATION OPPORTUNITY**: Run review categories in parallel for faster analysis:
+
+```
+Use the Task tool with parallel subagents:
+
+Task 1: Security Review
+  - Check for vulnerabilities
+  - Review access control
+  - Verify input validation
+  - Check external call safety
+
+Task 2: Code Quality Review
+  - Check best practices
+  - Review naming conventions
+  - Check error handling
+  - Identify code duplication
+
+Task 3: Performance Review
+  - Check for inefficiencies
+  - Review loop optimizations
+  - Check caching opportunities
+  - Review database queries (if applicable)
+
+Task 4: Testing Review
+  - Check test coverage
+  - Identify missing test cases
+  - Review test quality
+```
+
+**For large PRs with many files**: Review files in parallel:
+```
+Task 1: Review src/auth/*.ts
+Task 2: Review src/api/*.ts
+Task 3: Review src/components/*.tsx
+...
+```
+
+Each subagent provides findings for its scope, results are combined.
 
 Review code changes systematically across these areas:
 

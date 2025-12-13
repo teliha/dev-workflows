@@ -40,7 +40,48 @@ Before diving into vulnerabilities, understand the contract:
 
 **CRITICAL**: You MUST read the complete contract code before performing the audit. Never audit based on partial information.
 
-### Step 3: Systematic Vulnerability Check
+### Step 3: Systematic Vulnerability Check (PARALLEL)
+
+**PARALLELIZATION OPPORTUNITY**: When auditing, run vulnerability categories in parallel:
+
+```
+Use the Task tool with parallel subagents for each vulnerability category:
+
+Task 1: Reentrancy Analysis
+  - Check all external calls
+  - Verify Checks-Effects-Interactions pattern
+  - Look for callback vulnerabilities
+
+Task 2: Access Control Analysis
+  - Check all public/external functions
+  - Verify authorization on sensitive operations
+  - Review modifier usage
+
+Task 3: Integer Operations Analysis
+  - Check division operations
+  - Verify precision handling
+  - Look for edge cases
+
+Task 4: External Call Safety Analysis
+  - Check return value handling
+  - Verify error propagation
+  - Review delegatecall usage
+
+Task 5: Token Handling Analysis
+  - Check approve patterns
+  - Verify transfer return values
+  - Check for fee-on-transfer issues
+
+Task 6: Flash Loan / Oracle Analysis
+  - Check price manipulation risks
+  - Verify oracle staleness checks
+  - Review single-block manipulation
+```
+
+Each subagent focuses on one vulnerability category with deep analysis.
+Results are combined into the final audit report.
+
+**For multiple contracts**: Audit each contract in parallel with separate subagents.
 
 Go through each category below systematically:
 

@@ -33,9 +33,33 @@ find docs/ -name "*spec*.md" -type f
 find requirements/ -name "*.md" -type f
 ```
 
-### Step 2: Read All Specifications
+### Step 2: Read All Specifications (PARALLEL)
 
 **CRITICAL**: Read ALL specification files completely before analysis.
+
+**PARALLELIZATION OPPORTUNITY**: When there are multiple spec files, read them in parallel using multiple subagents:
+
+```
+Use the Task tool with multiple parallel invocations:
+
+Task 1: Read and extract from specs/auth.md
+Task 2: Read and extract from specs/api.md
+Task 3: Read and extract from specs/data-model.md
+...
+
+Each subagent extracts:
+- Key statements and requirements
+- Defined terms and concepts
+- Cross-references to other specs
+- Numerical values and thresholds
+```
+
+**Example parallel invocation:**
+```
+Launch 3+ subagents simultaneously, each with:
+- subagent_type: "general-purpose"
+- prompt: "Read [spec_file] and extract: 1) All requirements 2) Defined terms 3) Numerical values 4) Cross-references. Return structured JSON."
+```
 
 For each file:
 1. Parse the document structure
@@ -137,6 +161,32 @@ Specs that may not match current implementation.
 - [ ] Dead links
 
 ## Analysis Checklist
+
+### Parallel Analysis Strategy
+
+When analyzing specs for contradictions, run multiple analysis tasks in parallel:
+
+```
+Use the Task tool with parallel subagents:
+
+Task 1 (Numerical Analysis):
+  - Extract all numbers, limits, thresholds
+  - Compare across specs for conflicts
+
+Task 2 (Terminology Analysis):
+  - Extract all defined terms
+  - Check for inconsistent usage
+
+Task 3 (Flow Analysis):
+  - Extract all state machines and flows
+  - Check for missing transitions or conflicts
+
+Task 4 (Cross-Reference Analysis):
+  - Extract all references between specs
+  - Verify all referenced items exist
+```
+
+This parallelization can reduce analysis time by 3-4x for large spec sets.
 
 ### Cross-Reference Analysis
 - [ ] All referenced terms are defined
