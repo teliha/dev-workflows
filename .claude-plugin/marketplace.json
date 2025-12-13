@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "dev-workflows",
-      "source": ".",
+      "source": "./",
       "description": "Automated development workflows for any project - security audits, coverage improvement, CI fixes, and spec validation. Supports Foundry/Solidity, Next.js, and more.",
       "version": "1.0.0",
       "author": {
