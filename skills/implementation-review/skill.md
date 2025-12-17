@@ -44,206 +44,117 @@ Use the Task tool with subagent_type="general-purpose" and a prompt that:
 4. Asks for objective comparison against the spec
 ```
 
-**Example invocation:**
-```
-Task: Review implementation against spec
-Prompt: |
-  You are reviewing an implementation with completely fresh eyes.
-  You have NO prior context - you are seeing this code for the first time.
-
-  SPECIFICATION: specs/feature/spec.md
-  IMPLEMENTATION FILES:
-  - src/feature/index.ts
-  - src/feature/utils.ts
-
-  Your task:
-  1. Read the specification completely
-  2. Read all implementation files
-  3. Compare implementation against EVERY requirement in the spec
-  4. Flag ANY gap, missing feature, or deviation
-  5. Be critical and thorough - assume nothing
-
-  Generate a detailed gap report with:
-  - Each requirement and its implementation status
-  - Missing or incomplete implementations
-  - Deviations from spec
-  - Specific fixes needed
-```
-
-### Why This Matters
-
-| Reviewer with Context | Reviewer without Context |
-|----------------------|--------------------------|
-| "I handled that edge case" | "Edge case X is not handled in code" |
-| "The error handling is there" | "No try/catch around API call" |
-| "That validation is implicit" | "Input validation is missing" |
-
 **The reviewer must have ZERO memory of writing the code.**
 
-### Review Loop with Context Isolation
+## Review Process
+
+### Step 1: Identify Target
+
+Find the specification and implementation:
+- Specification: Ask user or detect from context
+- Implementation files: Based on spec references or project structure
+
+### Step 2: Parallel Subagent Analysis
+
+Launch parallel subagents using Task tool (subagent_type: general-purpose) for context-isolated review:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              CONTEXT-ISOLATED REVIEW LOOP            │
-│                                                      │
-│  ┌──────────┐    ┌──────────────┐    ┌──────────┐  │
-│  │  Spec +  │───▶│  SUBAGENT    │───▶│  Gaps?   │  │
-│  │  Impl    │    │ (Fresh eyes) │    │          │  │
-│  └──────────┘    └──────────────┘    └────┬─────┘  │
-│                                           │         │
-│                             ┌─────────────┴───┐     │
-│                             ▼                 ▼     │
-│                        ┌────────┐       ┌────────┐  │
-│                        │  YES   │       │   NO   │  │
-│                        └───┬────┘       │ (Done) │  │
-│                            │            └────────┘  │
-│                            ▼                        │
-│                       ┌─────────┐                   │
-│                       │  Apply  │                   │
-│                       │  Fixes  │                   │
-│                       └────┬────┘                   │
-│                            │                        │
-│                            ▼                        │
-│                   ┌────────────────┐                │
-│                   │ NEW SUBAGENT   │────────┐       │
-│                   │ (Fresh review) │        │       │
-│                   └────────────────┘        │       │
-│                            ▲                │       │
-│                            └────────────────┘       │
-│                         (Each review = new agent)   │
-└─────────────────────────────────────────────────────┘
+Category 1: SPEC COMPLIANCE
+- All requirements implemented as specified
+- Response formats match spec exactly
+- Error codes and messages match spec
+- Edge cases handled as specified
+
+Category 2: CODE QUALITY
+- No hardcoded values that should be configurable
+- Proper error handling
+- Type safety (no `any` types in TypeScript)
+- Following project patterns
+
+Category 3: TASK COMPLETION
+- All tasks/requirements are completed
+- No partial implementations
+- Tests written for all scenarios
+
+Category 4: SECURITY
+- Authentication applied where required
+- Input validation implemented
+- No sensitive data exposure
+- Authorization checks in place
 ```
 
-**Each iteration of the review loop should use a NEW subagent.**
-
-## Review Loop Process
-
-### Overview
-
-```
-┌─────────────────────────────────────────────────┐
-│                 REVIEW LOOP                      │
-│                                                  │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐  │
-│  │  Spec    │───▶│  Check   │───▶│  Gaps?   │  │
-│  │  File    │    │  Impl    │    │          │  │
-│  └──────────┘    └──────────┘    └────┬─────┘  │
-│                                       │         │
-│                         ┌─────────────┴───┐     │
-│                         ▼                 ▼     │
-│                    ┌────────┐       ┌────────┐  │
-│                    │  YES   │       │   NO   │  │
-│                    │ (Fix)  │       │ (Done) │  │
-│                    └───┬────┘       └────────┘  │
-│                        │                        │
-│                        ▼                        │
-│                   ┌─────────┐                   │
-│                   │  Apply  │                   │
-│                   │  Fixes  │──────────┐        │
-│                   └─────────┘          │        │
-│                        ▲               │        │
-│                        └───────────────┘        │
-│                      (Loop until done)          │
-└─────────────────────────────────────────────────┘
+Each subagent returns:
+```json
+{
+  "category": "...",
+  "issues": [
+    {"severity": "error|warning", "location": "file:line", "description": "...", "fix": "..."}
+  ],
+  "passed": true/false
+}
 ```
 
-### Step 1: Locate Specification
+### Step 3: Self-Correcting Loop
 
-Find the specification that was used for implementation:
-
-```bash
-# Common spec locations
-find specs/ -name "*.md" -type f
-find docs/ -name "*spec*.md" -type f
-find requirements/ -name "*.md" -type f
-```
-
-**Ask if unclear**: "Which specification file should I review against?"
-
-### Step 2 & 3: Read Spec and Implementation (PARALLEL)
-
-**CRITICAL**: Read the ENTIRE specification and ALL implementation files before reviewing.
-
-**PARALLELIZATION OPPORTUNITY**: Read spec and implementation files simultaneously:
+**IMPORTANT**: Fix ALL issues including warnings, not just errors.
 
 ```
-Use the Task tool with parallel subagents:
+consecutive_passes = 0
+iteration = 0
 
-Task 1 (Spec Analysis):
-  - Read the complete specification
-  - Extract all requirements, constraints, edge cases
-  - Return structured list of checkpoints
+WHILE consecutive_passes < 3:
+  iteration++
+  1. Aggregate results from all subagents
+  2. If issues found (errors OR warnings):
+     - consecutive_passes = 0  # Reset counter
+     - Apply fixes to code
+     - Update tests if needed
+  3. If no issues (PASS):
+     - consecutive_passes++
+  4. Re-run parallel review with fresh subagents
 
-Task 2 (Implementation Discovery):
-  - Find all implementation files
-  - Read each file and identify:
-    - Public API / exports
-    - Key functions and their signatures
-    - Error handling patterns
-    - State management
-
-Task 3 (Test Analysis - if tests exist):
-  - Read existing test files
-  - Identify what's already tested
-  - Note coverage gaps
+CONSECUTIVE_PASSES_REQUIRED: 3
 ```
 
-**Example parallel invocation:**
-```
-Launch subagents simultaneously:
-- Subagent 1: "Read specs/feature/spec.md and extract all requirements as JSON"
-- Subagent 2: "Find and read src/feature/*.ts, return function signatures and behaviors"
-- Subagent 3: "Read tests/feature/*.test.ts, return tested scenarios"
-```
+**Termination Conditions:**
+- **Success**: 3 consecutive PASS results (no errors or warnings)
+- **This ensures**: Review stability and catches intermittent issues
 
-Extract from the spec:
-1. **Functional Requirements** - What the code must do
-2. **Technical Requirements** - How it must be implemented
-3. **Constraints** - Limitations and boundaries
-4. **Edge Cases** - Special conditions to handle
-5. **Error Handling** - Expected error behaviors
-6. **Performance Requirements** - Speed, memory, gas limits
-7. **Security Requirements** - Access control, validation
+### Step 4: Final Report
 
-Find all files that implement the specification:
+Output structured summary:
 
-```bash
-# Find implementation files
-find src/ -name "*.ts" -o -name "*.sol" -o -name "*.tsx"
+```markdown
+## Implementation Review Results: <feature-name>
 
-# Or based on spec mentions
-grep -r "FeatureName" src/
-```
+| Category | Status | Issues |
+|----------|--------|--------|
+| Spec Compliance | PASSED/FAILED | N errors, M warnings |
+| Code Quality | PASSED/FAILED | N errors, M warnings |
+| Task Completion | PASSED/FAILED | N errors, M warnings |
+| Security | PASSED/FAILED | N errors, M warnings |
 
-### Step 4: Systematic Review (PARALLEL CATEGORIES)
+### Iterations Summary
+| Iteration | Issues Found | Consecutive Passes |
+|-----------|--------------|-------------------|
+| 1 | 5 errors, 3 warnings | 0 |
+| 2 | 0 | 1 |
+| 3 | 0 | 2 |
+| 4 | 0 | 3 |
 
-**PARALLELIZATION OPPORTUNITY**: Run review categories in parallel:
+### Fixed Issues (per iteration)
+- Iteration 1: [list of fixes]
 
-```
-Use the Task tool with parallel subagents for each category:
-
-Task 1: Functional Completeness Review
-  - Check each requirement against implementation
-  - Return pass/fail for each requirement
-
-Task 2: Edge Cases Review
-  - Check all edge case handling
-  - Identify missing boundary checks
-
-Task 3: Error Handling Review
-  - Verify all error cases from spec
-  - Check error propagation
-
-Task 4: Security Review (if applicable)
-  - Check access control
-  - Verify input validation
-
-Task 5: Performance Review (if specified)
-  - Check performance requirements
-  - Identify inefficiencies
+### Final Status: PASSED (3 consecutive)
+Review stability confirmed with 3 consecutive passes.
 ```
 
-Each subagent reviews independently with fresh context, then results are combined.
+## Severity Definitions
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| error | Must fix before commit | Blocks merge |
+| warning | Should fix for quality | Also fixed in feedback loop |
 
 ## Review Checklist
 
@@ -260,8 +171,8 @@ For each requirement in the spec:
 ```markdown
 | Spec Requirement | Status | Implementation Location | Notes |
 |-----------------|--------|------------------------|-------|
-| [Requirement 1] | ✅/❌/⚠️ | `file.ts:line` | [Notes] |
-| [Requirement 2] | ✅/❌/⚠️ | `file.ts:line` | [Notes] |
+| [Requirement 1] | PASS/FAIL/PARTIAL | `file.ts:line` | [Notes] |
+| [Requirement 2] | PASS/FAIL/PARTIAL | `file.ts:line` | [Notes] |
 ```
 
 ### B. Edge Cases
@@ -299,115 +210,49 @@ For each requirement in the spec:
 - [ ] No obvious inefficiencies?
 - [ ] Resource limits respected?
 
-### Step 5: Generate Gap Report
+## Overlooked Issues Recording
 
-After reviewing, generate a detailed gap report:
+When an issue is found after a previous PASS iteration, it indicates a review oversight.
+Record these in CLAUDE.md at the directory level where the issue exists.
 
-```markdown
-# Implementation Review Report
+### Recording Location
 
-**Spec**: `[spec file path]`
-**Implementation**: `[impl file paths]`
-**Date**: [YYYY-MM-DD HH:MM]
-**Review Iteration**: [N]
+Place overlooked issues in `CLAUDE.md` files at the directory containing the problematic file.
 
----
+**Example**: If issue is in `src/features/auth/login.ts`
+- Create/update: `src/features/auth/CLAUDE.md`
 
-## Summary
+### Recording Process
 
-| Category | Status | Issues |
-|----------|--------|--------|
-| Functional Completeness | ✅/⚠️/❌ | [count] |
-| Edge Cases | ✅/⚠️/❌ | [count] |
-| Error Handling | ✅/⚠️/❌ | [count] |
-| Technical Accuracy | ✅/⚠️/❌ | [count] |
-| Security | ✅/⚠️/❌ | [count] |
-| Performance | ✅/⚠️/❌ | [count] |
+When oversight occurs (PASS then FAIL):
+1. Identify the directory containing the file with the issue
+2. Create or update `CLAUDE.md` in that directory
+3. Add the oversight pattern with check instruction
+4. Future reviews will read these CLAUDE.md files
 
-**Overall Status**: [PASS / NEEDS FIXES]
-
----
-
-## Gaps Found
-
-### Gap #1: [Title]
-
-**Category**: [Functional/Edge Case/Error/Technical/Security/Performance]
-**Severity**: [Critical/High/Medium/Low]
-
-**Spec Says**:
-> [Quote from specification]
-
-**Implementation Has**:
-> [Current implementation or "Missing"]
-
-**Location**: `[file:line]`
-
-**Required Fix**:
-[Specific steps to fix]
-
----
-
-[Repeat for each gap]
-
----
-
-## Verification Checklist
-
-After fixes, verify:
-- [ ] All gaps addressed
-- [ ] No regressions introduced
-- [ ] Tests updated if needed
-- [ ] Tests pass
-```
-
-### Step 6: Apply Fixes
-
-For each gap found:
-
-1. **Understand the gap** - Why does implementation differ from spec?
-2. **Plan the fix** - What exactly needs to change?
-3. **Apply minimal fix** - Change only what's needed
-4. **Verify fix** - Does it now match spec?
-
-### Step 7: Loop Until Complete
-
-**CRITICAL**: After applying fixes, RESTART the review from Step 4.
-
-Continue looping until:
-- All functional requirements are met
-- All edge cases are handled
-- All error handling is correct
-- No gaps remain
-
-### Step 8: Final Verification
-
-When all gaps are closed:
+### CLAUDE.md Format
 
 ```markdown
-## Final Review Summary
+# Overlooked Issues for This Directory
 
-**Iterations Required**: [N]
-**Total Gaps Found**: [count]
-**All Gaps Resolved**: ✅
+## [Issue Pattern Name]
 
-### Changes Made
-1. [Change 1]
-2. [Change 2]
+**Category**: SPEC_COMPLIANCE/CODE_QUALITY/TASK_COMPLETION/SECURITY
+**File**: filename.ts
+**Missed in iteration**: N
+**Found in iteration**: M
+**Description**: What was missed
+**Check instruction**: Specific verification step
 
-### Tests
-- [ ] All existing tests pass
-- [ ] New tests added for gaps
-- [ ] Coverage adequate
-
-### Confidence Level
-[High/Medium/Low] - [Explanation]
-
-### Ready for
-- [ ] Code review
-- [ ] Merge
-- [ ] Deployment
+---
 ```
+
+### Subagent Integration
+
+When reviewing, subagents should:
+1. Check for CLAUDE.md in implementation directories
+2. Include check instructions from CLAUDE.md in verification
+3. Pay extra attention to previously overlooked patterns
 
 ## Review Categories by Project Type
 
@@ -455,29 +300,30 @@ Additional checks:
 ### Knowing When to Stop
 
 Stop the loop when:
-- ✅ All spec requirements implemented
-- ✅ All edge cases handled
-- ✅ All tests pass
-- ✅ No known gaps remain
+- All spec requirements implemented
+- All edge cases handled
+- All tests pass
+- No known gaps remain
+- 3 consecutive PASS results achieved
 
 Don't stop if:
-- ❌ "Good enough" but gaps remain
-- ❌ Tired of iterating
-- ❌ Minor issues seem unimportant
+- "Good enough" but gaps remain
+- Tired of iterating
+- Minor issues seem unimportant
 
 ## Integration with Workflow
 
-### After `/implement` or manual implementation
+### After implementation
 
 ```
-User: "I've finished implementing the vault spec"
+User: "I've finished implementing the feature"
 
 Skill activates:
-1. Finds vault spec
+1. Finds related spec
 2. Reviews implementation
 3. Reports gaps
 4. Applies fixes
-5. Loops until complete
+5. Loops until complete (3 consecutive passes)
 6. Reports final status
 ```
 
@@ -488,49 +334,6 @@ Skill activates:
 - "Run implementation review loop"
 - "Verify implementation completeness"
 - "Self-review the implementation"
-
-## Output Examples
-
-### Gap Found Example
-
-```markdown
-### Gap #1: Missing Error Handler
-
-**Category**: Error Handling
-**Severity**: High
-
-**Spec Says**:
-> "Return InvalidAmount error when deposit amount is zero"
-
-**Implementation Has**:
-No check for zero amount in deposit function
-
-**Location**: `src/Vault.sol:45`
-
-**Required Fix**:
-Add require statement:
-```solidity
-require(amount > 0, InvalidAmount());
-```
-```
-
-### All Clear Example
-
-```markdown
-## Implementation Review Complete
-
-**Status**: ✅ ALL REQUIREMENTS MET
-
-- Functional: 12/12 requirements ✅
-- Edge Cases: 8/8 handled ✅
-- Errors: 5/5 implemented ✅
-- Security: 3/3 checks ✅
-
-**Iterations**: 3
-**Total Fixes**: 7
-
-Ready for code review and merge.
-```
 
 ## IMPORTANT: Post-Approval Behavior
 
@@ -547,10 +350,16 @@ When the implementation review passes (ALL REQUIREMENTS MET):
    - Deploy to staging/production
    - Do something else entirely
 
-**Rationale**: The user should maintain control over when to proceed. Automatic actions could:
-- Skip important steps in the user's workflow
-- Trigger deployments the user isn't ready for
-- Miss opportunities for manual review
-- Create PRs or merges without proper context
+**Rationale**: The user should maintain control over when to proceed.
+
+## Notes
+
+- Each review iteration uses fresh subagents (context isolation)
+- Parallel execution for speed
+- Both errors and warnings are auto-fixed
+- **Termination: 3 consecutive PASS results required** (not max iterations)
+- Any issue found resets the consecutive pass counter to 0
+- Compares implementation against spec, not just code quality
+- **Check overlooked issues database** before each review
 
 <!-- IMPL-REVIEW:END -->
