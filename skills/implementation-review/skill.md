@@ -1,6 +1,6 @@
 ---
-name: Implementation Review Loop
-description: Self-feedback review loop to verify implementation matches specification
+name: implementation-review
+description: Self-feedback review loop to verify implementation matches specification. Use with --mode quick/standard/thorough to control review depth. Default is thorough (3 consecutive passes). (user)
 category: Quality
 tags: [review, spec, implementation, feedback, quality-assurance, verification]
 ---
@@ -21,6 +21,41 @@ This skill automatically activates when:
 ## Purpose
 
 Ensure that implementations fully and correctly match their specifications through systematic self-review and iterative improvement.
+
+## Precision Modes
+
+Use `--mode` or `-m` to control review depth:
+
+| Mode | Passes | Categories | Use Case |
+|------|--------|------------|----------|
+| quick | 1 | SPEC_COMPLIANCE only | Fast sanity check |
+| standard | 2 consecutive | All 4 categories | Balanced review |
+| thorough | 3 consecutive | All 4 categories | Full review (default) |
+
+### Usage Examples
+
+```
+implementation review --mode quick
+implementation review -m standard src/feature/
+implementation review  # defaults to thorough
+```
+
+### Mode Details
+
+**Quick Mode** (1 pass):
+- Only checks SPEC_COMPLIANCE
+- No consecutive pass requirement
+- Best for: Quick verification, WIP reviews
+
+**Standard Mode** (2 consecutive passes):
+- All 4 categories checked
+- Requires 2 consecutive passes without issues
+- Best for: Most implementations, good balance of speed/quality
+
+**Thorough Mode** (3 consecutive passes) - DEFAULT:
+- All 4 categories checked
+- Requires 3 consecutive passes without issues
+- Best for: Critical code, production-ready validation
 
 ## CRITICAL: Context Isolation for Objective Review
 
@@ -99,10 +134,16 @@ Each subagent returns:
 **IMPORTANT**: Fix ALL issues including warnings, not just errors.
 
 ```
+# Passes required based on mode:
+# - quick: 1 pass (no consecutive requirement)
+# - standard: 2 consecutive passes
+# - thorough: 3 consecutive passes (default)
+
 consecutive_passes = 0
 iteration = 0
+REQUIRED_PASSES = mode_to_passes(mode)  # 1, 2, or 3
 
-WHILE consecutive_passes < 3:
+WHILE consecutive_passes < REQUIRED_PASSES:
   iteration++
   1. Aggregate results from all subagents
   2. If issues found (errors OR warnings):
@@ -113,12 +154,12 @@ WHILE consecutive_passes < 3:
      - consecutive_passes++
   4. Re-run parallel review with fresh subagents
 
-CONSECUTIVE_PASSES_REQUIRED: 3
 ```
 
-**Termination Conditions:**
-- **Success**: 3 consecutive PASS results (no errors or warnings)
-- **This ensures**: Review stability and catches intermittent issues
+**Termination Conditions by Mode:**
+- **Quick**: 1 pass with no issues (fast, minimal validation)
+- **Standard**: 2 consecutive passes (balanced)
+- **Thorough**: 3 consecutive passes (comprehensive, default)
 
 ### Step 4: Final Report
 
@@ -357,7 +398,7 @@ When the implementation review passes (ALL REQUIREMENTS MET):
 - Each review iteration uses fresh subagents (context isolation)
 - Parallel execution for speed
 - Both errors and warnings are auto-fixed
-- **Termination: 3 consecutive PASS results required** (not max iterations)
+- **Modes**: quick (1 pass), standard (2 passes), thorough (3 passes, default)
 - Any issue found resets the consecutive pass counter to 0
 - Compares implementation against spec, not just code quality
 - **Check overlooked issues database** before each review

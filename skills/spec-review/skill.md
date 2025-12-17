@@ -1,6 +1,6 @@
 ---
-name: Specification Review Expert
-description: Review specifications for completeness, clarity, testability, and quality before implementation
+name: spec-review
+description: Review specifications for completeness, clarity, testability, and quality. Use with --mode quick/standard/thorough to control review depth. Default is thorough (3 consecutive passes). (user)
 category: Documentation
 tags: [specification, review, quality, requirements, documentation]
 ---
@@ -21,6 +21,41 @@ This skill automatically activates when:
 ## Purpose
 
 Ensure specifications are complete, clear, and implementable BEFORE development begins. Catching issues in specs is much cheaper than fixing them in code.
+
+## Precision Modes
+
+Use `--mode` or `-m` to control review depth:
+
+| Mode | Passes | Categories | Use Case |
+|------|--------|------------|----------|
+| quick | 1 | COMPLETENESS, CLARITY only | Fast sanity check |
+| standard | 2 consecutive | All 5 categories | Balanced review |
+| thorough | 3 consecutive | All 5 categories | Full review (default) |
+
+### Usage Examples
+
+```
+spec review --mode quick specs/feature/spec.md
+spec review -m standard specs/feature/spec.md
+spec review specs/feature/spec.md  # defaults to thorough
+```
+
+### Mode Details
+
+**Quick Mode** (1 pass):
+- Only checks COMPLETENESS and CLARITY
+- No consecutive pass requirement
+- Best for: Early drafts, quick sanity checks
+
+**Standard Mode** (2 consecutive passes):
+- All 5 categories checked
+- Requires 2 consecutive passes without issues
+- Best for: Most reviews, good balance of speed/quality
+
+**Thorough Mode** (3 consecutive passes) - DEFAULT:
+- All 5 categories checked
+- Requires 3 consecutive passes without issues
+- Best for: Critical specs, production-ready validation
 
 ## CRITICAL: Context Isolation for Objective Review
 
@@ -118,10 +153,16 @@ Each subagent returns:
 **IMPORTANT**: Fix ALL issues including warnings, not just errors.
 
 ```
+# Passes required based on mode:
+# - quick: 1 pass (no consecutive requirement)
+# - standard: 2 consecutive passes
+# - thorough: 3 consecutive passes (default)
+
 consecutive_passes = 0
 iteration = 0
+REQUIRED_PASSES = mode_to_passes(mode)  # 1, 2, or 3
 
-WHILE consecutive_passes < 3:
+WHILE consecutive_passes < REQUIRED_PASSES:
   iteration++
   1. Aggregate results from all subagents
   2. If issues found (errors OR warnings):
@@ -131,13 +172,12 @@ WHILE consecutive_passes < 3:
   3. If no issues (PASS):
      - consecutive_passes++
   4. Re-run parallel review with fresh subagents
-
-CONSECUTIVE_PASSES_REQUIRED: 3
 ```
 
-**Termination Conditions:**
-- **Success**: 3 consecutive PASS results (no errors or warnings)
-- **This ensures**: Review stability and catches intermittent issues
+**Termination Conditions by Mode:**
+- **Quick**: 1 pass with no issues (fast, minimal validation)
+- **Standard**: 2 consecutive passes (balanced)
+- **Thorough**: 3 consecutive passes (comprehensive, default)
 
 ### Step 4: Final Report
 
@@ -288,7 +328,7 @@ When the spec review passes (SPEC APPROVED):
 - Each review iteration uses fresh subagents (context isolation)
 - Parallel execution for speed
 - Both errors and warnings are auto-fixed
-- **Termination: 3 consecutive PASS results required** (not max iterations)
+- **Modes**: quick (1 pass), standard (2 passes), thorough (3 passes, default)
 - Any issue found resets the consecutive pass counter to 0
 - **Check overlooked issues database** before each review
 
