@@ -1,6 +1,6 @@
 ---
-name: Specification Review Expert
-description: Review specifications for completeness, clarity, testability, and quality before implementation
+name: spec-review
+description: Review specifications for completeness, clarity, testability, and quality. Use with --mode quick/standard/thorough to control review depth. Default is thorough (3 consecutive passes). (user)
 category: Documentation
 tags: [specification, review, quality, requirements, documentation]
 ---
@@ -22,6 +22,41 @@ This skill automatically activates when:
 
 Ensure specifications are complete, clear, and implementable BEFORE development begins. Catching issues in specs is much cheaper than fixing them in code.
 
+## Precision Modes
+
+Use `--mode` or `-m` to control review depth:
+
+| Mode | Passes | Categories | Use Case |
+|------|--------|------------|----------|
+| quick | 1 | COMPLETENESS, CLARITY only | Fast sanity check |
+| standard | 2 consecutive | All 5 categories | Balanced review |
+| thorough | 3 consecutive | All 5 categories | Full review (default) |
+
+### Usage Examples
+
+```
+spec review --mode quick specs/feature/spec.md
+spec review -m standard specs/feature/spec.md
+spec review specs/feature/spec.md  # defaults to thorough
+```
+
+### Mode Details
+
+**Quick Mode** (1 pass):
+- Only checks COMPLETENESS and CLARITY
+- No consecutive pass requirement
+- Best for: Early drafts, quick sanity checks
+
+**Standard Mode** (2 consecutive passes):
+- All 5 categories checked
+- Requires 2 consecutive passes without issues
+- Best for: Most reviews, good balance of speed/quality
+
+**Thorough Mode** (3 consecutive passes) - DEFAULT:
+- All 5 categories checked
+- Requires 3 consecutive passes without issues
+- Best for: Critical specs, production-ready validation
+
 ## CRITICAL: Context Isolation for Objective Review
 
 **Problem**: If you (Claude) helped write the specification, reviewing it in the same conversation introduces bias. You may unconsciously:
@@ -42,113 +77,190 @@ Use the Task tool with subagent_type="general-purpose" and a prompt that:
 3. Asks for objective review against the checklist
 ```
 
-**Example invocation:**
-```
-Task: Review specification
-Prompt: |
-  You are reviewing a specification file with fresh eyes.
-  You have NO prior context about this spec - you are seeing it for the first time.
-
-  Please read and review: specs/feature/spec.md
-
-  Review against these criteria:
-  - Completeness: Are all necessary sections present?
-  - Clarity: Are there any ambiguous terms?
-  - Testability: Can acceptance criteria be objectively verified?
-  - Edge Cases: Are boundary conditions covered?
-  - Consistency: Is the spec internally consistent?
-
-  Be critical and objective. Flag anything unclear or missing.
-  Generate a detailed review report.
-```
-
-### Why This Matters
-
-| With Context | Without Context |
-|--------------|-----------------|
-| "I know what they meant by 'fast'" | "What is 'fast'? Not defined." |
-| "We discussed error handling" | "Error handling section is missing" |
-| "The edge cases are obvious" | "Edge cases not documented" |
-
 **The reviewer should have NO memory of writing the spec.**
 
 ## Review Process
 
-### Step 1: Read the Entire Specification
+### Step 1: Identify Target
 
-**CRITICAL**: Read the complete specification before reviewing.
+Find the specification to review:
+- If path provided: Use that path
+- If not provided: Ask user or detect from context
 
-Understand:
-- What is being specified?
-- What is the scope?
-- Who is the audience?
+### Step 2: Parallel Subagent Analysis
 
-### Step 2: Systematic Review (PARALLEL CATEGORIES)
-
-**PARALLELIZATION OPPORTUNITY**: Run review categories in parallel for comprehensive analysis:
+Launch 5+ parallel subagents using Task tool (subagent_type: general-purpose) for context-isolated review:
 
 ```
-Use the Task tool with parallel subagents for each category:
+Category 1: COMPLETENESS
+- Purpose/Overview defined
+- Scope (included/excluded) defined
+- Functional requirements listed
+- Non-functional requirements listed
+- Data requirements (inputs, outputs, formats)
+- Error handling specified
+- Edge cases documented
+- Dependencies listed
+- Constraints documented
+- Acceptance criteria defined
 
-Task 1: Completeness Review
-  - Check all required sections present
-  - Verify scope coverage
-  - Identify missing requirements
+Category 2: CLARITY
+- No ambiguous terms ("fast", "many", "appropriate")
+- Specific values (numbers, limits, thresholds)
+- Clear ownership (who/what is responsible)
+- Defined terms (technical terms explained)
+- No hidden assumptions
 
-Task 2: Clarity Review
-  - Find ambiguous terms
-  - Check for undefined thresholds
-  - Verify ownership clarity
+Category 3: TESTABILITY
+- Measurable criteria
+- Clear pass/fail conditions
+- Expected outputs for given inputs
+- Error conditions specified
+- Edge case tests defined
 
-Task 3: Testability Review
-  - Check acceptance criteria
-  - Verify measurable requirements
-  - Review test scenarios
+Category 4: EDGE CASES & CONSISTENCY
+- Zero/empty values handled
+- Maximum values handled
+- Boundary conditions specified
+- Null/undefined cases covered
+- Internal consistency (no contradictions)
+- Consistent terminology
 
-Task 4: Edge Cases & Consistency Review
-  - Check boundary conditions
-  - Verify internal consistency
-  - Check terminology alignment
-
-Task 5: Technical & Security Review
-  - Verify feasibility
-  - Check security considerations
-  - Review authentication/authorization
+Category 5: TECHNICAL & SECURITY
+- Technically feasible
+- Resource requirements realistic
+- Performance targets achievable
+- Dependencies available
+- Authentication requirements documented
+- Authorization checks specified
+- Data protection defined
+- Input validation specified
 ```
 
-Each subagent reviews independently with fresh eyes, results are combined into final report.
+Each subagent returns:
+```json
+{
+  "category": "...",
+  "issues": [
+    {"severity": "error|warning", "location": "file:section", "description": "..."}
+  ],
+  "passed": true/false
+}
+```
 
-## Review Categories
+### Step 3: Self-Correcting Loop
 
-### A. Completeness (必要な要件が全て含まれているか)
+**IMPORTANT**: Fix ALL issues including warnings, not just errors.
 
-**Checklist:**
-- [ ] **Purpose/Overview** - Why does this feature exist?
-- [ ] **Scope** - What is included/excluded?
-- [ ] **Functional Requirements** - What must the system do?
-- [ ] **Non-Functional Requirements** - Performance, security, etc.
-- [ ] **Data Requirements** - Inputs, outputs, formats
-- [ ] **Error Handling** - What happens when things go wrong?
-- [ ] **Edge Cases** - Boundary conditions and special cases
-- [ ] **Dependencies** - External systems, libraries, APIs
-- [ ] **Constraints** - Limitations and restrictions
-- [ ] **Acceptance Criteria** - How do we know it's done?
+```
+# Passes required based on mode:
+# - quick: 1 pass (no consecutive requirement)
+# - standard: 2 consecutive passes
+# - thorough: 3 consecutive passes (default)
 
-**Questions to ask:**
-- What's missing that an implementer would need to know?
-- Are all user scenarios covered?
-- Are failure modes documented?
+consecutive_passes = 0
+iteration = 0
+REQUIRED_PASSES = mode_to_passes(mode)  # 1, 2, or 3
 
-### B. Clarity (曖昧な表現がないか)
+WHILE consecutive_passes < REQUIRED_PASSES:
+  iteration++
+  1. Aggregate results from all subagents
+  2. If issues found (errors OR warnings):
+     - consecutive_passes = 0  # Reset counter
+     - Fix ALL errors first
+     - Then fix ALL warnings
+  3. If no issues (PASS):
+     - consecutive_passes++
+  4. Re-run parallel review with fresh subagents
+```
 
-**Checklist:**
-- [ ] **No ambiguous terms** - "fast", "many", "appropriate", etc.
-- [ ] **Specific values** - Numbers, limits, thresholds defined
-- [ ] **Clear ownership** - Who/what is responsible for each action
-- [ ] **Defined terms** - Technical terms explained or glossaried
-- [ ] **No assumptions** - Implicit knowledge made explicit
+**Termination Conditions by Mode:**
+- **Quick**: 1 pass with no issues (fast, minimal validation)
+- **Standard**: 2 consecutive passes (balanced)
+- **Thorough**: 3 consecutive passes (comprehensive, default)
 
-**Ambiguous patterns to flag:**
+### Step 4: Final Report
+
+Output structured summary:
+
+```markdown
+## Spec Review Results: <spec-name>
+
+| Category | Status | Issues |
+|----------|--------|--------|
+| Completeness | PASSED/FAILED | N errors, M warnings |
+| Clarity | PASSED/FAILED | N errors, M warnings |
+| Testability | PASSED/FAILED | N errors, M warnings |
+| Edge Cases & Consistency | PASSED/FAILED | N errors, M warnings |
+| Technical & Security | PASSED/FAILED | N errors, M warnings |
+
+### Iterations Summary
+| Iteration | Issues Found | Consecutive Passes |
+|-----------|--------------|-------------------|
+| 1 | 5 errors, 3 warnings | 0 |
+| 2 | 0 | 1 |
+| 3 | 0 | 2 |
+| 4 | 0 | 3 |
+
+### Fixed Issues (per iteration)
+- Iteration 1: [list of fixes]
+
+### Final Status: PASSED (3 consecutive)
+Review stability confirmed with 3 consecutive passes.
+```
+
+## Severity Definitions
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| error | Blocks implementation | Must fix before proceeding |
+| warning | Could cause problems | Should fix (also auto-fixed in loop) |
+
+## Overlooked Issues Recording
+
+When an issue is found after a previous PASS iteration, it indicates a review oversight.
+Record these in CLAUDE.md at the directory level where the issue exists.
+
+### Recording Location
+
+Place overlooked issues in `CLAUDE.md` files at the directory containing the problematic file.
+
+**Example**: If issue is in `specs/feature/spec.md`
+- Create/update: `specs/feature/CLAUDE.md`
+
+### Recording Process
+
+When oversight occurs (PASS then FAIL):
+1. Identify the directory containing the file with the issue
+2. Create or update `CLAUDE.md` in that directory
+3. Add the oversight pattern with check instruction
+4. Future reviews will read these CLAUDE.md files
+
+### CLAUDE.md Format
+
+```markdown
+# Overlooked Issues for This Directory
+
+## [Issue Pattern Name]
+
+**Category**: COMPLETENESS/CLARITY/TESTABILITY/EDGE_CASES/TECHNICAL/SECURITY
+**File**: filename.md
+**Missed in iteration**: N
+**Found in iteration**: M
+**Description**: What was missed
+**Check instruction**: Specific verification step
+
+---
+```
+
+### Subagent Integration
+
+When reviewing, subagents should:
+1. Check for CLAUDE.md in spec directories
+2. Include check instructions from CLAUDE.md in verification
+3. Pay extra attention to previously overlooked patterns
+
+## Ambiguous Patterns to Flag
 
 | Ambiguous | Clear |
 |-----------|-------|
@@ -157,275 +269,6 @@ Each subagent reviews independently with fresh eyes, results are combined into f
 | "Users can access appropriate data" | "Users can access data they own" |
 | "Should be secure" | "Must use TLS 1.3, authenticate all requests" |
 | "As needed" | "When X condition is met" |
-
-**Questions to ask:**
-- Could two developers interpret this differently?
-- Are all "should", "may", "might" intentional or should they be "must"?
-
-### C. Testability (受け入れ基準が明確か)
-
-**Checklist:**
-- [ ] **Measurable criteria** - Can be objectively verified
-- [ ] **Test scenarios** - Clear pass/fail conditions
-- [ ] **Expected outputs** - For given inputs, what's expected?
-- [ ] **Error conditions** - What errors should occur when?
-- [ ] **Edge case tests** - Boundary conditions specified
-
-**Template for good acceptance criteria:**
-```markdown
-## Acceptance Criteria
-
-### Scenario: [Name]
-**Given** [precondition]
-**When** [action]
-**Then** [expected result]
-
-### Test Cases
-| Input | Expected Output | Notes |
-|-------|-----------------|-------|
-| [value] | [result] | [edge case] |
-```
-
-**Questions to ask:**
-- How would QA test this?
-- Can we write automated tests from this spec?
-
-### D. Edge Cases (境界条件が考慮されているか)
-
-**Common edge cases to check:**
-
-| Category | Examples |
-|----------|----------|
-| Empty/Zero | Empty string, zero amount, null value |
-| Boundaries | Min value, max value, exactly at limit |
-| Invalid | Wrong type, negative when positive expected |
-| Timing | Concurrent requests, race conditions |
-| State | First time, already exists, deleted |
-| Permissions | No access, partial access, admin |
-| Resources | Out of memory, disk full, timeout |
-
-**Questions to ask:**
-- What happens at the boundaries?
-- What if the input is invalid?
-- What if something fails midway?
-
-### E. Internal Consistency (内部で矛盾がないか)
-
-**Checklist:**
-- [ ] **No conflicting requirements** - A doesn't contradict B
-- [ ] **Consistent terminology** - Same term = same meaning
-- [ ] **Aligned numbers** - Values match throughout
-- [ ] **Coherent flow** - Steps make logical sense
-
-**Questions to ask:**
-- Does section A align with section B?
-- Are all referenced items defined?
-
-### F. Technical Feasibility (技術的に実現可能か)
-
-**Checklist:**
-- [ ] **Technically possible** - Can be implemented with available tech
-- [ ] **Resource reasonable** - Memory, CPU, storage realistic
-- [ ] **Time realistic** - Performance requirements achievable
-- [ ] **Dependencies available** - Required services/APIs exist
-- [ ] **Security achievable** - Security requirements implementable
-
-**Questions to ask:**
-- Is this physically possible?
-- Are there any impossible requirements?
-- Are performance targets realistic?
-
-### G. Security Considerations (セキュリティ)
-
-**Checklist:**
-- [ ] **Authentication** - How are users identified?
-- [ ] **Authorization** - Who can do what?
-- [ ] **Data protection** - Sensitive data handling?
-- [ ] **Input validation** - How is input sanitized?
-- [ ] **Audit logging** - What actions are logged?
-
-### H. Structure and Format (構造とフォーマット)
-
-**Checklist:**
-- [ ] **Logical organization** - Easy to navigate
-- [ ] **Consistent formatting** - Headers, lists, tables
-- [ ] **Version/date** - When was this written?
-- [ ] **Author/owner** - Who is responsible?
-- [ ] **Status** - Draft, review, approved?
-
-## Output Format
-
-### Review Report
-
-```markdown
-# Specification Review Report
-
-**Spec**: `[file path]`
-**Date**: [YYYY-MM-DD HH:MM]
-**Status**: [NEEDS WORK / APPROVED WITH NOTES / APPROVED]
-
----
-
-## Summary
-
-| Category | Status | Issues |
-|----------|--------|--------|
-| Completeness | ✅/⚠️/❌ | [count] |
-| Clarity | ✅/⚠️/❌ | [count] |
-| Testability | ✅/⚠️/❌ | [count] |
-| Edge Cases | ✅/⚠️/❌ | [count] |
-| Consistency | ✅/⚠️/❌ | [count] |
-| Feasibility | ✅/⚠️/❌ | [count] |
-| Security | ✅/⚠️/❌ | [count] |
-| Structure | ✅/⚠️/❌ | [count] |
-
-**Overall**: [X] issues found, [Y] critical
-
----
-
-## Critical Issues (Must Fix)
-
-### Issue #1: [Title]
-
-**Category**: [Completeness/Clarity/etc.]
-**Location**: [Section/Line]
-
-**Problem**:
-[Description of the issue]
-
-**Example**:
-> [Quote from spec]
-
-**Recommendation**:
-[How to fix it]
-
----
-
-## Warnings (Should Fix)
-
-### Warning #1: [Title]
-
-**Category**: [Category]
-**Location**: [Section]
-
-**Problem**: [Description]
-**Recommendation**: [Fix]
-
----
-
-## Suggestions (Nice to Have)
-
-### Suggestion #1: [Title]
-
-[Description and recommendation]
-
----
-
-## Questions for Clarification
-
-These need answers before implementation:
-
-1. [Question 1]
-2. [Question 2]
-
----
-
-## Positive Findings
-
-What the spec does well:
-- [Good point 1]
-- [Good point 2]
-
----
-
-## Checklist Summary
-
-### Completeness
-- [x] Purpose defined
-- [x] Scope defined
-- [ ] Edge cases documented ⚠️
-- [ ] Error handling specified ❌
-
-[Continue for each category...]
-
----
-
-## Recommendation
-
-**Status**: [NEEDS WORK / APPROVED WITH NOTES / APPROVED]
-
-**Next Steps**:
-1. [Action 1]
-2. [Action 2]
-```
-
-## Severity Levels
-
-| Level | Meaning | Action |
-|-------|---------|--------|
-| ❌ Critical | Blocks implementation | Must fix before proceeding |
-| ⚠️ Warning | Could cause problems | Should fix |
-| 💡 Suggestion | Improvement opportunity | Nice to have |
-| ✅ Pass | No issues | Good to go |
-
-## Example Review Findings
-
-### Critical: Missing Error Handling
-
-```markdown
-### Issue #1: No error handling specified for API failures
-
-**Category**: Completeness
-**Location**: Section 3.2 - API Integration
-
-**Problem**:
-The spec describes calling the payment API but doesn't specify what happens if the API:
-- Returns an error
-- Times out
-- Is unavailable
-
-**Quote**:
-> "The system calls the payment API with the transaction details"
-
-**Recommendation**:
-Add error handling section:
-- Define retry policy (e.g., 3 retries with exponential backoff)
-- Specify error messages to show users
-- Define fallback behavior if API is down
-```
-
-### Warning: Ambiguous Requirement
-
-```markdown
-### Warning #1: "Large files" not defined
-
-**Category**: Clarity
-**Location**: Section 2.1 - File Upload
-
-**Problem**:
-"Large files should be handled differently" - what is "large"?
-
-**Quote**:
-> "Large files should be processed asynchronously"
-
-**Recommendation**:
-Define threshold: "Files larger than 10MB should be processed asynchronously"
-```
-
-### Suggestion: Add Acceptance Criteria
-
-```markdown
-### Suggestion #1: Add test scenarios
-
-**Category**: Testability
-**Location**: Section 4 - Requirements
-
-**Problem**:
-Requirements are clear but no acceptance criteria provided.
-
-**Recommendation**:
-Add "Acceptance Criteria" section with Given/When/Then scenarios.
-```
 
 ## Best Practices for Spec Authors
 
@@ -461,8 +304,8 @@ This skill works well with:
 ## Workflow
 
 ```
-Write Spec → Spec Review (this skill) → Fix Issues →
-  → Check Contradictions → [USER DECISION] → Implement → Implementation Review
+Write Spec -> Spec Review (this skill) -> Fix Issues ->
+  -> Check Contradictions -> [USER DECISION] -> Implement -> Implementation Review
 ```
 
 ## IMPORTANT: Post-Approval Behavior
@@ -478,9 +321,15 @@ When the spec review passes (SPEC APPROVED):
    - Check contradictions with other specs
    - Do something else entirely
 
-**Rationale**: The user should maintain control over when implementation begins. Automatic implementation could:
-- Start work the user isn't ready for
-- Miss opportunities for user to review the final spec
-- Skip important steps in the user's workflow
+**Rationale**: The user should maintain control over when implementation begins.
+
+## Notes
+
+- Each review iteration uses fresh subagents (context isolation)
+- Parallel execution for speed
+- Both errors and warnings are auto-fixed
+- **Modes**: quick (1 pass), standard (2 passes), thorough (3 passes, default)
+- Any issue found resets the consecutive pass counter to 0
+- **Check overlooked issues database** before each review
 
 <!-- SPEC-REVIEW:END -->
